@@ -45,6 +45,7 @@
 "hooks_any_provider" = "Любой провайдер";
 "hooks_threshold" = "Запускать при использовании ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "Исполняемый файл";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "Аргументы";
 "hooks_argument_placeholder" = "Аргумент";

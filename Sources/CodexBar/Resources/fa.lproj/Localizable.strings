@@ -566,6 +566,7 @@
 "hooks_any_provider" = "هر ارائه‌دهنده";
 "hooks_threshold" = "اجرا در مصرف ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "فایل اجرایی";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "آرگومان‌ها";
 "hooks_argument_placeholder" = "آرگومان";

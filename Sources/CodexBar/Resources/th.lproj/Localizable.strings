@@ -566,6 +566,7 @@
 "hooks_any_provider" = "ผู้ให้บริการใดก็ได้";
 "hooks_threshold" = "เรียกใช้เมื่อการใช้งาน ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "ไฟล์ปฏิบัติการ";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "อาร์กิวเมนต์";
 "hooks_argument_placeholder" = "อาร์กิวเมนต์";

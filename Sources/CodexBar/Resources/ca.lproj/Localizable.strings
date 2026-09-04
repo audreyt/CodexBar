@@ -546,6 +546,7 @@
 "hooks_any_provider" = "Qualsevol proveïdor";
 "hooks_threshold" = "Activa amb ús ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "Executable";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "Arguments";
 "hooks_argument_placeholder" = "Argument";

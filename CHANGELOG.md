@@ -4,7 +4,9 @@
 
 ### Fixed
 - Codex cost: price GPT-6 Astra sessions, including cached tokens and long-context Fast usage, and reprice saved rows without rebuilding token history (#3423, #3425).
+- Hooks: show only the configured threshold, executable, and arguments in Settings; keep examples inside empty fields instead of displaying them as duplicate labels (#3424). Thanks @kedryte!
 - Codex: recover subscription renewal and expiration dates through optional OpenAI web billing capture, without delaying app usage or allowing late results to replace newer dashboards or cross accounts (#3373). Thanks @emanuelst!
+- Kimi: show API membership and standalone CLI versions, retry rejected automatic web sessions, and preserve completed quotas when optional plan metadata stalls; cancelled refreshes stop before further browser reads (#3414). Thanks @xirong!
 
 ## 0.56.5 — 2026-09-04
 

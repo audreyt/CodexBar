@@ -45,6 +45,7 @@
 "hooks_any_provider" = "Nhà cung cấp bất kỳ";
 "hooks_threshold" = "Chạy khi mức sử dụng ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "Tệp thực thi";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "Đối số";
 "hooks_argument_placeholder" = "Đối số";
