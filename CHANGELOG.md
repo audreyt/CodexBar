@@ -3,7 +3,6 @@
 ## Unreleased
 
 ### Fixed
-- z.ai: omit impossible five-hour Coding Plan reset timestamps and prevent cached resets from restoring them, retaining quota percentages and valid weekly/MCP dates (partial mitigation for #2871). Thanks @carolitascl!
 - Cost history: keep tall charts in a bounded scroll view so switching Token/Cost no longer jumps the native menu or undoes an immediate wheel scroll (#3380). Thanks @Yuxin-Qiao!
 - z.ai: abbreviate large model token totals with M/B while preserving exact hourly and daily chart values (#3308, #3310). Thanks @medpath1024 and @fantasy!
 - Settings: disable iCloud sync sub-options when the main sync switch is off, preserving their saved choices for the next time sync is enabled (#3406). Thanks @elijahfriedman!
@@ -15,6 +14,7 @@
 - Claude: offer Switch Account after a successful CLI quota read without identity fields, while preserving recovery actions for failed refreshes and restored history (partial fix for #3395). Thanks @PoroGramr!
 - Usage & Spend: prefer heatmap tooltips above hovered cells and keep them within narrow grids; retain daily keyboard selection without the extra system focus rectangle (#3407). Thanks @elijahfriedman!
 - Codex: show extra-credit spend and limits with a distinct purchased balance; reconcile cap and balance freshness independently so confirmed zero balances stay cleared and monthly bars agree with their totals (#3296). Thanks @sf-jin-ku!
+- z.ai: omit impossible five-hour Coding Plan reset timestamps and prevent cached resets from restoring them, retaining quota percentages and valid weekly/MCP dates (partial mitigation for #2871). Thanks @carolitascl!
 
 ## 0.56.4 — 2026-09-03
 
