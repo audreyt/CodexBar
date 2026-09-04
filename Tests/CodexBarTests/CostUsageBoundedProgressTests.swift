@@ -125,7 +125,10 @@ struct CostUsageBoundedProgressTests {
                 options: options)
         }
         let completed = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
-        #expect(completed.files.keys.contains { $0.hasSuffix(discoveredURL.lastPathComponent) })
+        let discoveredUsage = try #require(completed.files.first {
+            $0.key.hasSuffix(discoveredURL.lastPathComponent)
+        }?.value)
+        #expect(discoveredUsage.days[dayKey]?.values.first == [50, 0, 5])
         #expect(completed.codexScanCatchUpPending == false)
         let report = CostUsageScanner.loadDailyReport(
             provider: .codex,
