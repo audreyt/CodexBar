@@ -409,6 +409,19 @@ public struct UsageSnapshot: Codable, Sendable {
     public func backfillingResetTimes(from cached: UsageSnapshot?, now: Date = .init()) -> UsageSnapshot {
         guard let cached else { return self }
         guard Self.identitiesMatch(self.identity, cached.identity) else { return self }
+        func eligibleCachedReset(_ candidate: RateWindow?, for current: RateWindow?) -> RateWindow? {
+            // Provider-specific by design: z.ai's five-hour Coding Plan must not regain an impossible reset.
+            guard self.identity?.providerID == .zai,
+                  current?.windowMinutes == 300, current?.resetDescription == "5-hour"
+            else { return candidate }
+            guard cached.identity?.providerID == self.identity?.providerID,
+                  candidate?.windowMinutes == 300, candidate?.resetDescription == "5-hour",
+                  let reset = candidate?.resetsAt,
+                  reset.timeIntervalSince1970.isFinite,
+                  reset.timeIntervalSince(now) <= 5 * 3600 + 60
+            else { return nil }
+            return candidate
+        }
         // Amp's percentage-based daily quota supersedes the legacy rolling-replenishment cadence. Do not attach
         // that older exact reset to the new daily window; other providers retain the shared backfill behavior.
         // Provider-specific by design: Amp daily quotas must not inherit its obsolete rolling-reset cadence.
@@ -419,9 +432,12 @@ public struct UsageSnapshot: Codable, Sendable {
         } else {
             cached.primary
         }
-        let primary = self.primary?.backfillingResetTime(from: cachedPrimary, now: now)
-        let secondary = self.secondary?.backfillingResetTime(from: cached.secondary, now: now)
-        let tertiary = self.tertiary?.backfillingResetTime(from: cached.tertiary, now: now)
+        let primary = self.primary?.backfillingResetTime(
+            from: eligibleCachedReset(cachedPrimary, for: self.primary), now: now)
+        let secondary = self.secondary?.backfillingResetTime(
+            from: eligibleCachedReset(cached.secondary, for: self.secondary), now: now)
+        let tertiary = self.tertiary?.backfillingResetTime(
+            from: eligibleCachedReset(cached.tertiary, for: self.tertiary), now: now)
         if primary == self.primary, secondary == self.secondary, tertiary == self.tertiary {
             return self
         }
