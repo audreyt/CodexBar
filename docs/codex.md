@@ -238,6 +238,7 @@ is limited, using additional rows when needed.
     Successful historical queries update their own pricing window independently of the live scan cursor, including
     results with no priority turns; validated pricing outside that window remains intact.
 - Window: configurable 1-365 day rolling history.
+- Pending cost scans retain their discovery range when the same cache receives narrower or wider history requests ending on the same day. Reports still use the requested dates. A new ending day, changed roots/timezone, or a forced rescan keeps the usual discovery reset behavior.
 - App cadence: regular timer-driven local-history refreshes have a 15-minute minimum (30 minutes in Low Power Mode).
   Manual disables the recurring refresh timer, not all scan activity: startup refreshes and pending Codex catch-up can
   still scan local history. Faster provider refreshes still update quota/status. The scanner's default 60-second
