@@ -210,6 +210,11 @@ is limited, using additional rows when needed.
     - `~/.pi/agent/sessions/**/*.jsonl`
     - `~/.omp/agent/sessions/**/*.jsonl`
 - Scanner:
+  - Bundled `gpt-6-astra` pricing covers input, cache reads/writes, output, and the full-request long-context
+    threshold above 272K input tokens. Astra Fast pricing is twice the applicable Standard rates when
+    existing priority-request evidence selects that mode. Stored token rows are repriced without a history rebuild.
+    Rates follow the [OpenAI model card](https://developers.openai.com/api/docs/models/gpt-6-astra) and
+    [pricing table](https://developers.openai.com/api/docs/pricing).
   - Native Codex logs parse `event_msg` token_count entries and `turn_context` model markers; when both are present,
     `turn_context` is authoritative for the model bucket.
   - pi and OMP sessions count assistant-message usage rows and attribute `openai-codex` assistant usage to Codex.

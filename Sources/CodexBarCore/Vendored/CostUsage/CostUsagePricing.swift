@@ -174,6 +174,19 @@ enum CostUsagePricing {
             outputCostPerToken: 1.8e-4,
             cacheReadInputCostPerToken: nil,
             displayLabel: nil),
+        // https://developers.openai.com/api/docs/models/gpt-6-astra and /api/docs/pricing.
+        // The full request switches to long-context rates above 272K input tokens, including Fast mode.
+        "gpt-6-astra": CodexPricing(
+            inputCostPerToken: 1e-5,
+            outputCostPerToken: 5e-5,
+            cacheReadInputCostPerToken: 1e-6,
+            displayLabel: nil,
+            cacheWriteInputCostPerToken: 1.25e-5,
+            thresholdTokens: 272_000,
+            inputCostPerTokenAboveThreshold: 2e-5,
+            outputCostPerTokenAboveThreshold: 7.5e-5,
+            cacheReadInputCostPerTokenAboveThreshold: 2e-6,
+            cacheWriteInputCostPerTokenAboveThreshold: 2.5e-5),
         // GPT-5.6 Sol/Terra/Luna (OpenAI pricing page + model cards).
         // Long context: prompts with >272K input tokens are 2x input / 1.5x output for the full
         // request. Cache writes: 1.25x uncached input. API Fast support and multipliers are applied
@@ -233,6 +246,7 @@ enum CostUsagePricing {
                 self.optionalPricingFingerprint(pricing.cacheReadInputCostPerTokenAboveThreshold),
                 self.optionalPricingFingerprint(pricing.cacheWriteInputCostPerTokenAboveThreshold),
                 self.optionalPricingFingerprint(self.codexAPIFastMultiplier(model: model)),
+                "fastLongContext=\(self.codexAPIFastAllowsLongContext(model: model))",
             ].joined(separator: "|"))
         }
         return parts.joined(separator: "\n")
@@ -664,9 +678,10 @@ enum CostUsagePricing {
         customPricing: CostUsageCustomPricing? = nil) -> Double?
     {
         guard let multiplier = self.codexAPIFastMultiplier(model: model) else { return nil }
-        // OpenAI does not support API Fast processing for long-context requests. Do not combine
-        // the independent Standard long-context and Fast short-context rate tables.
-        if max(0, inputTokens) > self.codexPriorityInputTokenLimit {
+        // Keep older models' established cutoff; Astra explicitly publishes long-context Fast rates.
+        if max(0, inputTokens) > self.codexPriorityInputTokenLimit,
+           !self.codexAPIFastAllowsLongContext(model: model)
+        {
             return nil
         }
 
@@ -687,10 +702,14 @@ enum CostUsagePricing {
     /// distinct from ChatGPT/Codex Fast credit multipliers, which do not represent a USD charge.
     static func codexAPIFastMultiplier(model: String) -> Double? {
         switch self.normalizeCodexModel(model) {
-        case "gpt-5.4", "gpt-5.4-mini", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna": 2
+        case "gpt-5.4", "gpt-5.4-mini", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra": 2
         case "gpt-5.5": 2.5
         default: nil
         }
+    }
+
+    private static func codexAPIFastAllowsLongContext(model: String) -> Bool {
+        self.normalizeCodexModel(model) == "gpt-6-astra"
     }
 
     static func codexCostUSD(

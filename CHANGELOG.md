@@ -3,6 +3,7 @@
 ## 0.56.6 — Unreleased
 
 ### Fixed
+- Codex cost: price GPT-6 Astra sessions, including cached tokens and long-context Fast usage, and reprice saved rows without rebuilding token history (#3423, #3425).
 - Codex: recover subscription renewal and expiration dates through optional OpenAI web billing capture, without delaying app usage or allowing late results to replace newer dashboards or cross accounts (#3373). Thanks @emanuelst!
 
 ## 0.56.5 — 2026-09-04
