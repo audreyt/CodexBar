@@ -45,6 +45,7 @@
 "hooks_any_provider" = "Qualquer provedor";
 "hooks_threshold" = "Executar com uso ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "Executável";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "Argumentos";
 "hooks_argument_placeholder" = "Argumento";

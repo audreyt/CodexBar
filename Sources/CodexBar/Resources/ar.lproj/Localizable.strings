@@ -566,6 +566,7 @@
 "hooks_any_provider" = "أي مزود";
 "hooks_threshold" = "التشغيل عند الاستخدام ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "الملف التنفيذي";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "الوسائط";
 "hooks_argument_placeholder" = "الوسيطة";

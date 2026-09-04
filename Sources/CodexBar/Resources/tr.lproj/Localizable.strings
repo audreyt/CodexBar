@@ -565,6 +565,7 @@
 "hooks_any_provider" = "Herhangi bir sağlayıcı";
 "hooks_threshold" = "Şu kullanım düzeyinde tetikle: ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "Çalıştırılabilir dosya";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "Argümanlar";
 "hooks_argument_placeholder" = "Argüman";

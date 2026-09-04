@@ -45,6 +45,7 @@
 "hooks_any_provider" = "任何提供者";
 "hooks_threshold" = "使用率 ≥ 時執行";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "執行檔";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "引數";
 "hooks_argument_placeholder" = "引數";

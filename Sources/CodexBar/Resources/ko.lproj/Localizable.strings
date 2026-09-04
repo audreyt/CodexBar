@@ -45,6 +45,7 @@
 "hooks_any_provider" = "모든 공급자";
 "hooks_threshold" = "사용량 ≥ 에서 실행";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "실행 파일";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "인수";
 "hooks_argument_placeholder" = "인수";

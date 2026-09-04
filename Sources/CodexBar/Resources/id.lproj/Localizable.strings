@@ -567,6 +567,7 @@
 "hooks_any_provider" = "Penyedia apa pun";
 "hooks_threshold" = "Picu saat penggunaan ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "Berkas yang dapat dijalankan";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "Argumen";
 "hooks_argument_placeholder" = "Argumen";

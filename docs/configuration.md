@@ -46,7 +46,8 @@ API keys, manual cookie headers, source selection, ordering, and token accounts 
 
 Hooks are local, explicit opt-in automation. Configure them in Settings > Hooks or in this local config file; no
 HTTP or remote-config endpoint can create or enable hook rules. The top-level `hooks.enabled` switch defaults to
-`false`, and each rule also has its own `enabled` switch.
+`false`, and each rule also has its own `enabled` switch. The editor shows thresholds as percentages; example
+values and command paths appear only as prompts in empty fields.
 
 ```json
 {

@@ -567,6 +567,7 @@
 "hooks_any_provider" = "Qualsiasi provider";
 "hooks_threshold" = "Attiva a utilizzo ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "Eseguibile";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "Argomenti";
 "hooks_argument_placeholder" = "Argomento";

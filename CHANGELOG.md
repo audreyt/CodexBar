@@ -3,6 +3,7 @@
 ## 0.56.6 — Unreleased
 
 ### Fixed
+- Hooks: show only the configured threshold, executable, and arguments in Settings; keep examples inside empty fields instead of displaying them as duplicate labels (#3424). Thanks @kedryte!
 - Codex: recover subscription renewal and expiration dates through optional OpenAI web billing capture, without delaying app usage or allowing late results to replace newer dashboards or cross accounts (#3373). Thanks @emanuelst!
 
 ## 0.56.5 — 2026-09-04
