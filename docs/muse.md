@@ -27,6 +27,8 @@ Credential precedence: when `providers.meta.access_token` is present inline in t
 - 5-hour window percent, duration, and `resets_at`.
 - Weekly window percent and `resets_at`.
 
+Reset timestamps outside the supported date range are omitted without discarding the window's usage percentage.
+
 Pay-as-you-go accounts without `is_subs_active` are reported as having no subscription rather than a fake 0% bar. Accounts that still need a payment method are reported as billing-incomplete.
 
 ## Privacy

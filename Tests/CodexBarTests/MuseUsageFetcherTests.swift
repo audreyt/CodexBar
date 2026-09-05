@@ -181,6 +181,27 @@ struct MuseUsageFetcherTests {
         }
     }
 
+    @Test(arguments: ["window", "weekly"])
+    func `oversized reset timestamps preserve usage without unsafe countdowns`(_ windowName: String) throws {
+        var payload = try #require(JSONSerialization.jsonObject(with: Self.liveMintData) as? [String: Any])
+        var windows = try #require(payload["subs_usage"] as? [String: Any])
+        var window = try #require(windows[windowName] as? [String: Any])
+        window["resets_at"] = 1e30
+        windows[windowName] = window
+        payload["subs_usage"] = windows
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let now = Date(timeIntervalSince1970: 1_788_580_000)
+        let usage = try MuseUsageFetcher._parseMintResponseForTesting(data, now: now).toUsageSnapshot()
+        let affected = try #require(windowName == "window" ? usage.primary : usage.secondary)
+        let unaffected = try #require(windowName == "window" ? usage.secondary : usage.primary)
+
+        #expect(affected.usedPercent == 96)
+        try #require(affected.resetsAt == nil)
+        #expect(UsageFormatter.resetLine(for: affected, style: .countdown, now: now) == nil)
+        #expect(unaffected.resetsAt != nil)
+        #expect(UsageFormatter.resetLine(for: unaffected, style: .countdown, now: now) != nil)
+    }
+
     @Test
     func `descriptor reports oauth login without api key support`() throws {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: .muse)

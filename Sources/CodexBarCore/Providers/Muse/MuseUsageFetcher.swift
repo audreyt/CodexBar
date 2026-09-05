@@ -211,7 +211,7 @@ public enum MuseUsageFetcher {
     }
 
     private static func date(fromUnixSeconds value: Double?) -> Date? {
-        guard let value, value > 0, value.isFinite else { return nil }
+        guard let value, value > 0, value <= Date.distantFuture.timeIntervalSince1970 else { return nil }
         return Date(timeIntervalSince1970: value)
     }
 
