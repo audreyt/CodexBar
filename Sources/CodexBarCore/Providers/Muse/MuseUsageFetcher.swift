@@ -151,7 +151,7 @@ public enum MuseUsageFetcher {
         } catch let error as MuseUsageError {
             throw error
         } catch let error as DecodingError {
-            throw MuseUsageError.parseFailed(error.localizedDescription)
+            throw MuseUsageError.parseFailed("mint response did not parse: \(error)")
         } catch {
             throw MuseUsageError.networkError(error.localizedDescription)
         }
@@ -186,7 +186,7 @@ public enum MuseUsageFetcher {
         do {
             mint = try JSONDecoder().decode(MintResponse.self, from: data)
         } catch {
-            throw MuseUsageError.parseFailed(error.localizedDescription)
+            throw MuseUsageError.parseFailed("mint response did not parse: \(error)")
         }
 
         if mint.requirePayment == true {
@@ -251,7 +251,14 @@ public enum MuseUsageFetcher {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             self.usedPercent = try Self.decodeNumber(container, forKey: .usedPercent)
             let minutes = try Self.decodeNumber(container, forKey: .windowDurationMins)
-            self.windowDurationMins = Int(minutes.rounded())
+            let rounded = minutes.rounded()
+            guard let bounded = Int(exactly: rounded) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .windowDurationMins,
+                    in: container,
+                    debugDescription: "window_duration_mins \(minutes) is not representable as an Int")
+            }
+            self.windowDurationMins = bounded
             self.resetsAt = try container.decodeIfPresent(Double.self, forKey: .resetsAt)
                 ?? container.decodeIfPresent(Int.self, forKey: .resetsAt).map(Double.init)
         }

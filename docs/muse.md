@@ -19,7 +19,7 @@ muse login
 
 CodexBar reads the same Keychain item the CLI stores (`ai.meta.dev.credentials` / `meta`) and sends only the device-code `dca:` access token to `POST https://api.meta.ai/muse-code/key`. Meta dashboard `LLM_` keys and Muse-minted `LLM|` inference keys cannot read this quota (they 401 on that mint endpoint).
 
-The CLI metadata file `~/.config/muse/auth.json` is used only to detect a Muse login. Override its path with `MUSE_AUTH_PATH` if needed. CodexBar never prompts Keychain.
+Credential precedence: when `providers.meta.access_token` is present inline in the CLI metadata file `~/.config/muse/auth.json`, that token selects the account queried and takes precedence over Keychain. Otherwise CodexBar reads the device-code token from the CLI's Keychain item. An `auth.json` with `"mechanism": "oauth"` but no inline token still counts as a login; the token then comes from Keychain. Override the file path with `MUSE_AUTH_PATH` if needed. CodexBar never prompts Keychain.
 
 ## Data shown
 

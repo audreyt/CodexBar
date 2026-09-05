@@ -3,9 +3,22 @@ import Foundation
 public enum MuseProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
 
+    /// OAuth-only login diagnostics. There is no API-key override: usage is minted
+    /// with the Muse CLI's device-code `dca:` token. Detection is prompt-free
+    /// (auth file read plus `KeychainNoUIQuery`-gated Keychain lookup).
+    private static let credentials = ProviderCredentialAdapter(
+        requiresAPIKeyForAPISource: false,
+        authDetector: { environment, _ in
+            MuseCredentials.hasLogin(environment: environment) ? ["oauth"] : []
+        },
+        missingCredentialMessage: { _ in
+            "Muse Code login not found. Run `muse login`, then refresh CodexBar."
+        })
+
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .muse,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .muse,
                 displayName: "Muse Code",

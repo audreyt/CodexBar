@@ -168,7 +168,52 @@ struct MuseUsageFetcherTests {
         #expect(descriptor.fetchPlan.sourceModes == Set([.auto, .oauth]))
         #expect(descriptor.cli.name == "muse")
         #expect(descriptor.cli.aliases.contains("muse-code") == true)
-        #expect(descriptor.credentials == nil)
+        #expect(descriptor.credentials != nil)
+    }
+
+    @Test
+    func `rejects out-of-range window duration instead of trapping`() {
+        #expect {
+            try MuseUsageFetcher._parseMintResponseForTesting(Self.oversizedDurationMintData)
+        } throws: { error in
+            guard case MuseUsageError.parseFailed = error else { return false }
+            return true
+        }
+    }
+
+    @Test
+    func `descriptor reports oauth login without api key support`() throws {
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: .muse)
+        let credentials = try #require(descriptor.credentials)
+        #expect(credentials.supportsAPIKeyOverride == false)
+        #expect(credentials.requiresAPIKeyForAPISource == false)
+        #expect(credentials.unavailableMessage(environment: [:])?.contains("muse login") == true)
+
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("muse-adapter-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let authURL = directory.appendingPathComponent("auth.json")
+        try Data(
+            """
+            {"schema_version":2,"providers":{"meta":{"mechanism":"oauth","storage":"keychain"}}}
+            """.utf8).write(to: authURL)
+
+        let summary = credentials.diagnosticAuthSummary(
+            account: nil,
+            config: nil,
+            environment: ["MUSE_AUTH_PATH": authURL.path],
+            settings: nil)
+        #expect(summary.configured == true)
+        #expect(summary.modes == ["oauth"])
+
+        let missing = credentials.diagnosticAuthSummary(
+            account: nil,
+            config: nil,
+            environment: ["MUSE_AUTH_PATH": directory.appendingPathComponent("missing.json").path],
+            settings: nil)
+        #expect(missing.configured == false)
+        #expect(missing.modes.isEmpty)
     }
 
     private static let liveMintData = Data(
@@ -199,6 +244,27 @@ struct MuseUsageFetcherTests {
               "resets_at": 1788739200
             },
             "tier": "123"
+          }
+        }
+        """.utf8)
+
+    private static let oversizedDurationMintData = Data(
+        """
+        {
+          "require_payment": false,
+          "is_subs_active": true,
+          "subs_tier_name": "Muse Code Power Usage",
+          "user_email": "ada@example.com",
+          "subs_usage": {
+            "window": {
+              "used_percent": 96,
+              "window_duration_mins": 1e30,
+              "resets_at": 1788599502
+            },
+            "weekly": {
+              "used_percent": 96,
+              "resets_at": 1788739200
+            }
           }
         }
         """.utf8)
