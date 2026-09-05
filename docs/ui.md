@@ -15,6 +15,9 @@ read_when:
 ## Menu bar
 - LSUIElement app: no Dock icon; status item uses custom NSImage.
 - Merge Icons toggle combines providers into one status item with a switcher.
+- With the automatic metric selected, switcher progress honors a provider's exhausted-quota selection before
+  showing normal weekly progress. Healthy allowances, explicit metric choices, and separate provider pools
+  retain their existing selection rules.
 - Provider status items use stable autosave names and are reused across provider toggles so macOS can preserve icon
   positions.
 - When Overview has selected providers, the switcher includes an Overview tab that renders up to 6 provider rows.
