@@ -186,7 +186,7 @@ public enum MuseUsageFetcher {
         do {
             mint = try JSONDecoder().decode(MintResponse.self, from: data)
         } catch {
-            throw MuseUsageError.parseFailed("mint response did not parse")
+            throw MuseUsageError.parseFailed(error.localizedDescription)
         }
 
         if mint.requirePayment == true {
