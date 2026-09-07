@@ -11,7 +11,11 @@ public enum VeniceProviderDescriptor {
             placeholder: "Paste API key…",
             injection: .environment(key: VeniceSettingsReader.apiKeyEnvironmentKey),
             requiresManualCookieSource: false,
-            cookieName: nil))
+            cookieName: nil),
+        // A selected API token account is the credential authority: route it
+        // to the API script instead of fetching an ambient browser session
+        // that would be mislabeled as that account.
+        selectedAccountSourceModeResolver: { base, account, _ in account == nil ? base : .api })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(

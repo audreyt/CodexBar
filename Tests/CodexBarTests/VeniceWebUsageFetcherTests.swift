@@ -39,6 +39,20 @@ struct VeniceWebUsageFetcherTests {
     }
 
     @Test
+    func `selected token account routes to api instead of ambient web`() {
+        let credentials = VeniceProviderDescriptor.descriptor.credentials
+        #expect(credentials?.selectedAccountSourceMode(base: .web, account: nil, config: nil) == .web)
+        #expect(credentials?.selectedAccountSourceMode(base: .auto, account: nil, config: nil) == .auto)
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Work",
+            token: "ven-account-key",
+            addedAt: 1_700_000_000,
+            lastUsed: nil)
+        #expect(credentials?.selectedAccountSourceMode(base: .web, account: account, config: nil) == .api)
+    }
+
+    @Test
     func `revoked first session falls through to signed-in profile`() async throws {
         let snapshot = try VeniceWebUsageFetcher.snapshot(
             fromClaims: Self.fixtureClaims(),
