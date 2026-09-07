@@ -1,5 +1,9 @@
 import Foundation
 
+#if os(macOS)
+import SweetCookieKit
+#endif
+
 public enum VeniceProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
     private static let credentials = ProviderCredentialAdapter.apiKey(
@@ -18,7 +22,15 @@ public enum VeniceProviderDescriptor {
         selectedAccountSourceModeResolver: { base, account, _ in account == nil ? base : .api })
 
     static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
+        // Chrome first per repo cookie-import policy; Brave second so users
+        // signed in only in Brave still resolve a web session.
+        #if os(macOS)
+        let browserOrder: BrowserCookieImportOrder = [.chrome, .brave]
+        #else
+        let browserOrder: BrowserCookieImportOrder? = nil
+        #endif
+
+        return ProviderDescriptor(
             id: .venice,
             credentials: self.credentials,
             metadata: ProviderMetadata(
@@ -37,7 +49,7 @@ public enum VeniceProviderDescriptor {
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 debugLogUnavailableMessage: "Venice debug log not yet implemented",
-                browserCookieOrder: nil,
+                browserCookieOrder: browserOrder,
                 dashboardURL: "https://venice.ai/settings/api",
                 statusPageURL: nil,
                 statusLinkURL: nil),
