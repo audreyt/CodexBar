@@ -86,6 +86,7 @@ public enum GrokTokenRefresher {
                 firstName: credentials.firstName,
                 lastName: credentials.lastName,
                 teamId: credentials.teamId,
+                principalType: credentials.principalType,
                 oidcIssuer: credentials.oidcIssuer,
                 oidcClientId: credentials.oidcClientId,
                 expiresAt: now.addingTimeInterval(expiresIn),
@@ -98,7 +99,8 @@ public enum GrokTokenRefresher {
     }
 
     static func refreshStoredCredentialsIfNeeded(
-        env: [String: String] = ProcessInfo.processInfo.environment) async throws -> GrokCredentials?
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        session: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> GrokCredentials?
     {
         let credentials: GrokCredentials
         do {
@@ -113,7 +115,21 @@ public enum GrokTokenRefresher {
             return credentials
         }
 
-        let refreshed = try await self.refresh(credentials)
+        let refreshed = try await self.refresh(
+            credentials,
+            session: session,
+            now: Date())
+        // The refresh awaited network I/O: only persist when the file still
+        // holds the credentials we refreshed. An intervening `grok login`
+        // (same scope key, new account) or logout must win over our result —
+        // otherwise we would restore a stale account or recreate removed
+        // credentials. A CLI-side rotation is also honored as-is.
+        guard let current = try? GrokCredentialsStore.load(env: env) else {
+            return nil
+        }
+        guard current.accessToken == credentials.accessToken else {
+            return current
+        }
         try GrokCredentialsStore.save(refreshed, env: env)
         return refreshed
     }

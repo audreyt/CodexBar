@@ -134,10 +134,106 @@ struct GrokTokenRefresherTests {
         #expect(result?.accessToken == nil)
     }
 
+    @Test
+    func `refresh preserves team principal`() async throws {
+        let responseBody = Data(#"{"access_token":"fresh-access","expires_in":3600}"#.utf8)
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            let response = try #require(HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil))
+            return (responseBody, response)
+        }
+
+        let refreshed = try await GrokTokenRefresher.refresh(
+            Self.credentials(refreshToken: "team-refresh", principalType: "team"),
+            session: transport,
+            now: Date(timeIntervalSince1970: 1_800_000_000))
+
+        #expect(refreshed.isTeamPrincipal)
+        #expect(refreshed.teamId == "team-id")
+    }
+
+    @Test
+    func `intervening login wins over stale refresh result`() async throws {
+        let home = FileManager.default.temporaryDirectory
+            .appendingPathComponent("GrokTokenRefresherTests-stale-\(UUID().uuidString)")
+        let env = ["GROK_HOME": home.path]
+        let authURL = home.appendingPathComponent("auth.json")
+        let scope = "https://auth.x.ai::b1a00492-073a-47ea-816f-4c329264a828"
+        try Self.writeAuthFile(
+            at: authURL,
+            scope: scope,
+            entry: [
+                "key": "a-access",
+                "refresh_token": "a-refresh",
+                "expires_at": "2020-01-01T00:00:00.000Z",
+            ])
+
+        let transport = ProviderHTTPTransportStub { request in
+            // Simulate `grok login` switching to account B mid-flight.
+            try Data(#"{"\#(scope)":{"key":"b-access"}}"#.utf8).write(to: authURL)
+            let url = try #require(request.url)
+            let response = try #require(HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil))
+            return (Data(#"{"access_token":"a-fresh","expires_in":3600}"#.utf8), response)
+        }
+
+        let result = try await GrokTokenRefresher.refreshStoredCredentialsIfNeeded(env: env, session: transport)
+        #expect(result?.accessToken == "b-access")
+        #expect(try GrokCredentialsStore.load(env: env).accessToken == "b-access")
+    }
+
+    @Test
+    func `removed auth file is not recreated by stale refresh`() async throws {
+        let home = FileManager.default.temporaryDirectory
+            .appendingPathComponent("GrokTokenRefresherTests-removed-\(UUID().uuidString)")
+        let env = ["GROK_HOME": home.path]
+        let authURL = home.appendingPathComponent("auth.json")
+        let scope = "https://auth.x.ai::b1a00492-073a-47ea-816f-4c329264a828"
+        try Self.writeAuthFile(
+            at: authURL,
+            scope: scope,
+            entry: [
+                "key": "a-access",
+                "refresh_token": "a-refresh",
+                "expires_at": "2020-01-01T00:00:00.000Z",
+            ])
+
+        let transport = ProviderHTTPTransportStub { request in
+            try FileManager.default.removeItem(at: authURL)
+            let url = try #require(request.url)
+            let response = try #require(HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil))
+            return (Data(#"{"access_token":"a-fresh","expires_in":3600}"#.utf8), response)
+        }
+
+        let result = try await GrokTokenRefresher.refreshStoredCredentialsIfNeeded(env: env, session: transport)
+        #expect(result?.accessToken == nil)
+        #expect(!FileManager.default.fileExists(atPath: authURL.path))
+    }
+
+    private static func writeAuthFile(at url: URL, scope: String, entry: [String: String]) throws {
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        let data = try JSONSerialization.data(withJSONObject: [scope: entry])
+        try data.write(to: url)
+    }
+
     private static func credentials(
         accessToken: String = "access-token",
         refreshToken: String? = "refresh-token",
-        expiresAt: Date? = Date(timeIntervalSince1970: 1_900_000_000)) -> GrokCredentials
+        expiresAt: Date? = Date(timeIntervalSince1970: 1_900_000_000),
+        principalType: String? = nil) -> GrokCredentials
     {
         GrokCredentials(
             accessToken: accessToken,
@@ -149,6 +245,7 @@ struct GrokTokenRefresherTests {
             firstName: "Ada",
             lastName: "Lovelace",
             teamId: "team-id",
+            principalType: principalType,
             oidcIssuer: "https://auth.x.ai",
             oidcClientId: "b1a00492-073a-47ea-816f-4c329264a828",
             expiresAt: expiresAt,
