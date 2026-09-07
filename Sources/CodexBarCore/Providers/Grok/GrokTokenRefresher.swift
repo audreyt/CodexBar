@@ -100,42 +100,6 @@ public enum GrokTokenRefresher {
         }
     }
 
-    static func refreshStoredCredentialsIfNeeded(
-        env: [String: String] = ProcessInfo.processInfo.environment,
-        session: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> GrokCredentials?
-    {
-        let credentials: GrokCredentials
-        do {
-            credentials = try GrokCredentialsStore.load(env: env)
-        } catch GrokCredentialsError.notFound {
-            return nil
-        }
-        guard credentials.needsRefresh,
-              credentials.scope.hasPrefix(GrokCredentialsStore.oidcScopePrefix),
-              credentials.refreshToken != nil
-        else {
-            return credentials
-        }
-
-        let refreshed = try await self.refresh(
-            credentials,
-            session: session,
-            now: Date())
-        // The refresh awaited network I/O: only persist when the file still
-        // holds the credentials we refreshed. An intervening `grok login`
-        // (same scope key, new account) or logout must win over our result —
-        // otherwise we would restore a stale account or recreate removed
-        // credentials. A CLI-side rotation is also honored as-is.
-        guard let current = try? GrokCredentialsStore.load(env: env) else {
-            return nil
-        }
-        guard current.accessToken == credentials.accessToken else {
-            return current
-        }
-        try GrokCredentialsStore.save(refreshed, env: env)
-        return refreshed
-    }
-
     private static func nonEmptyString(_ value: Any?) -> String? {
         guard let string = value as? String,
               !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
