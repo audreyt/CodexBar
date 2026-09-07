@@ -70,4 +70,8 @@ struct VeniceProviderImplementation: ProviderImplementation {
     func settingsFields(context _: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         []
     }
+
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        .venice(context.settings.veniceSettingsSnapshot(tokenOverride: context.tokenOverride))
+    }
 }

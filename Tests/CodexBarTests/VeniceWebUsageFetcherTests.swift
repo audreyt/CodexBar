@@ -106,6 +106,17 @@ struct VeniceWebUsageFetcherTests {
     }
 
     @Test
+    func `venice settings section accepts snapshot contribution`() {
+        // Startup assembles a snapshot per provider and precondition-fails on
+        // mismatch; pin the contract so the app cannot launch-trap again.
+        let registration = VeniceProviderDescriptor.descriptor.settingsSection
+        let contribution = ProviderSettingsSnapshotContribution.venice(VeniceProviderSettings(
+            cookieSource: .auto,
+            manualCookieHeader: nil))
+        #expect(registration.accepts(contribution))
+    }
+
+    @Test
     func `auto source ignores stored manual header`() async throws {
         let snapshot = try VeniceWebUsageFetcher.snapshot(
             fromClaims: Self.fixtureClaims(),

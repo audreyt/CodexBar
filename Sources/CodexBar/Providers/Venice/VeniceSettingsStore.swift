@@ -20,6 +20,24 @@ extension SettingsStore {
         }
     }
 
+    var veniceCookieSource: ProviderCookieSource {
+        self.resolvedCookieSource(provider: .venice, fallback: .auto)
+    }
+
+    var veniceCookieHeader: String {
+        self.configSnapshot.providerConfig(for: .venice)?.sanitizedCookieHeader ?? ""
+    }
+
+    func veniceSettingsSnapshot(tokenOverride: TokenAccountOverride?)
+        -> ProviderSettingsSnapshot.VeniceProviderSettings
+    {
+        self.resolvedCookieSettings(
+            provider: .venice,
+            configuredSource: self.veniceCookieSource,
+            configuredHeader: self.veniceCookieHeader,
+            tokenOverride: tokenOverride)
+    }
+
     private static func veniceUsageDataSource(from source: ProviderSourceMode?) -> VeniceUsageDataSource {
         guard let source else { return .auto }
         switch source {
