@@ -56,11 +56,19 @@ public enum VeniceProviderDescriptor {
                 versionDetector: nil))
     }
 
+    /// Window label for the cookie-based monthly quota view.
+    public static func primaryLabel(window: RateWindow?) -> String? {
+        guard window?.windowMinutes == ProviderPaceCapability.monthlyWindowSentinelMinutes else {
+            return nil
+        }
+        return "Monthly credits"
+    }
+
     private static func fetchPlan() -> ProviderFetchPlan {
         ProviderFetchPlan(
-            sourceModes: [.auto, .api],
-            pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
-                [ScriptFetchStrategy(
+            sourceModes: [.auto, .api, .web],
+            pipeline: ProviderFetchPipeline(resolveStrategies: { context in
+                let script = ScriptFetchStrategy(
                     id: "venice.js",
                     provider: .venice,
                     bundledPlugin: "venice",
@@ -69,7 +77,12 @@ public enum VeniceProviderDescriptor {
                     resolveSecret: { environment in
                         self.credentials.resolveToken(environment: environment)?.token
                     },
-                    isEnabled: { _ in true })]
+                    isEnabled: { _ in true })
+                // Explicit web source uses only the cookie strategy so a
+                // missing session surfaces the sign-in error instead of
+                // silently falling back to the API key.
+                guard context.sourceMode == .web else { return [script] }
+                return [VeniceWebFetchStrategy()]
             }))
     }
 }
