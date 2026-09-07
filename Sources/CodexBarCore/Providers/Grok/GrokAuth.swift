@@ -79,6 +79,22 @@ public struct GrokCredentials: Sendable {
         return Date() >= expiresAt
     }
 
+    /// Refresh a few minutes before expiry so a fetch never races a dying token.
+    public static let refreshLeeway: TimeInterval = 5 * 60
+
+    /// True when an OIDC refresh token is present and the access token is expired
+    /// or inside the refresh leeway. Credentials without an expiry (pasted tokens,
+    /// legacy sessions) never need refresh.
+    public var needsRefresh: Bool {
+        guard let refreshToken,
+              !refreshToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            return false
+        }
+        guard let expiresAt else { return false }
+        return Date() >= expiresAt.addingTimeInterval(-Self.refreshLeeway)
+    }
+
     public var isTeamPrincipal: Bool {
         self.principalType?.trimmingCharacters(in: .whitespacesAndNewlines)
             .caseInsensitiveCompare("team") == .orderedSame
@@ -159,6 +175,51 @@ public enum GrokCredentialsStore {
         return try self.parse(data: data)
     }
 
+    /// Merges refreshed tokens back into auth.json under the credential's scope,
+    /// preserving other scopes and unknown fields. The CLI owns this file, so this
+    /// only runs after an explicit refresh — never speculatively.
+    public static func save(
+        _ credentials: GrokCredentials,
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        fileManager: FileManager = .default) throws
+    {
+        let url = self.authFileURL(env: env, fileManager: fileManager)
+        var root: [String: Any] = [:]
+        if fileManager.fileExists(atPath: url.path) {
+            let data = try Data(contentsOf: url)
+            guard let parsed = try? JSONSerialization.jsonObject(with: data),
+                  let object = parsed as? [String: Any]
+            else {
+                throw GrokCredentialsError.decodeFailed("Invalid JSON (expected object at root)")
+            }
+            root = object
+        } else {
+            try fileManager.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true)
+        }
+        var entry = root[credentials.scope] as? [String: Any] ?? [:]
+        entry["key"] = credentials.accessToken
+        if let refreshToken = credentials.refreshToken?.nilIfEmpty {
+            entry["refresh_token"] = refreshToken
+        }
+        entry["auth_mode"] = credentials.authMode
+        entry["user_id"] = credentials.userId
+        entry["email"] = credentials.email
+        entry["first_name"] = credentials.firstName
+        entry["last_name"] = credentials.lastName
+        entry["team_id"] = credentials.teamId
+        entry["oidc_issuer"] = credentials.oidcIssuer
+        entry["oidc_client_id"] = credentials.oidcClientId
+        entry["expires_at"] = credentials.expiresAt.map { Self.iso8601String($0) }
+        entry["create_time"] = credentials.createTime.map { Self.iso8601String($0) }
+        root[credentials.scope] = entry
+        let data = try JSONSerialization.data(
+            withJSONObject: root,
+            options: [.prettyPrinted, .sortedKeys])
+        try data.write(to: url, options: .atomic)
+    }
+
     public static func parse(data: Data) throws -> GrokCredentials {
         let raw: Any
         do {
@@ -215,6 +276,12 @@ public enum GrokCredentialsStore {
             }
         }
         return oidcCandidate ?? legacyCandidate
+    }
+
+    private static func iso8601String(_ date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
     }
 
     private static func parseDate(_ raw: Any?) -> Date? {
