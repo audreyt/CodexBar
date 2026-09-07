@@ -49,11 +49,24 @@ public enum VeniceProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Venice per-day cost history is not available via API." }),
+            presentation: ProviderUsagePresentation(
+                rateWindowLabeler: { metadata, snapshot, _ in
+                    ProviderRateWindowLabels(
+                        primary: Self.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel,
+                        secondary: metadata.weeklyLabel,
+                        tertiary: metadata.opusLabel ?? "Sonnet",
+                        showsTertiary: metadata.supportsOpus)
+                }),
             fetchPlan: self.fetchPlan(),
             cli: ProviderCLIConfig(
                 name: "venice",
                 aliases: ["ven"],
-                versionDetector: nil))
+                versionDetector: nil,
+                // Automatic mode resolves through the API-key script without
+                // touching the browser, so Linux must not reject it just
+                // because an explicit web source exists. Explicit web stays
+                // unsupported off macOS via the strategy itself.
+                browserSupportExemption: { sourceMode, _, _ in sourceMode == .auto }))
     }
 
     /// Window label for the cookie-based monthly quota view.
@@ -82,7 +95,7 @@ public enum VeniceProviderDescriptor {
                 // missing session surfaces the sign-in error instead of
                 // silently falling back to the API key.
                 guard context.sourceMode == .web else { return [script] }
-                return [VeniceWebFetchStrategy()]
+                return [VeniceWebFetchStrategy(timeout: context.webTimeout)]
             }))
     }
 }

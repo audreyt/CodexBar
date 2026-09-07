@@ -26,14 +26,20 @@ struct VeniceWebFetchStrategy: ProviderFetchStrategy {
     private let sessionLoader: SessionLoader
 
     init(
-        usageLoader: @escaping UsageLoader = { try await VeniceWebUsageFetcher.fetchUsage(cookieHeader: $0) },
-        sessionLoader: @escaping SessionLoader = { try Self.defaultSessions() })
+        usageLoader: UsageLoader? = nil,
+        sessionLoader: SessionLoader? = nil,
+        timeout: TimeInterval = VeniceWebUsageFetcher.defaultTimeout)
     {
-        self.usageLoader = usageLoader
-        self.sessionLoader = sessionLoader
+        self.usageLoader = usageLoader ?? { header in
+            try await VeniceWebUsageFetcher.fetchUsage(cookieHeader: header, timeout: timeout)
+        }
+        self.sessionLoader = sessionLoader ?? { try Self.defaultSessions() }
     }
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        // A selected token account is an authority boundary: ambient browser
+        // sessions must never be fetched and labeled as that account.
+        guard context.selectedTokenAccountID == nil else { return false }
         guard context.sourceMode == .web else { return false }
         #if os(macOS)
         return true
@@ -43,12 +49,27 @@ struct VeniceWebFetchStrategy: ProviderFetchStrategy {
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        guard context.sourceMode == .web else { throw VeniceUsageError.missingCredentials }
-        guard let session = try self.sessionLoader().first else {
-            throw VeniceUsageError.missingCredentials
+        guard context.selectedTokenAccountID == nil else {
+            throw VeniceUsageError.tokenAccountUnsupported
         }
-        let usage = try await self.usageLoader(session.cookieHeader)
-        return self.makeResult(usage: usage, sourceLabel: session.sourceLabel)
+        guard context.sourceMode == .web else { throw VeniceUsageError.missingCredentials }
+        let sessions = try self.sessionLoader()
+        guard !sessions.isEmpty else { throw VeniceUsageError.missingCredentials }
+        var lastError: (any Error)?
+        for session in sessions {
+            do {
+                let usage = try await self.usageLoader(session.cookieHeader)
+                return self.makeResult(usage: usage, sourceLabel: session.sourceLabel)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch let error as VeniceUsageError where error.isSessionAuthenticationFailure {
+                lastError = error
+                continue
+            } catch {
+                throw error
+            }
+        }
+        throw lastError ?? VeniceUsageError.missingCredentials
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {

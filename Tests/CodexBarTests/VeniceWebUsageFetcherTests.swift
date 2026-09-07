@@ -27,6 +27,63 @@ struct VeniceWebUsageFetcherTests {
     }
 
     @Test
+    func `token account selection rejects before cookie import`() async {
+        let strategy = VeniceWebFetchStrategy(
+            usageLoader: { _ in fatalError("must not fetch") },
+            sessionLoader: { fatalError("must not import cookies") })
+        let account = Self.context(.web, selectedTokenAccountID: UUID())
+        #expect(await strategy.isAvailable(account) == false)
+        await #expect(throws: VeniceUsageError.tokenAccountUnsupported) {
+            _ = try await strategy.fetch(account)
+        }
+    }
+
+    @Test
+    func `revoked first session falls through to signed-in profile`() async throws {
+        let snapshot = try VeniceWebUsageFetcher.snapshot(
+            fromClaims: Self.fixtureClaims(),
+            now: Self.fixtureNow)
+        let strategy = VeniceWebFetchStrategy(
+            usageLoader: { header in
+                if header == "session=revoked" { throw VeniceUsageError.invalidCredentials }
+                return snapshot
+            },
+            sessionLoader: {
+                [
+                    VeniceResolvedSession(cookieHeader: "session=revoked", sourceLabel: "Chrome A"),
+                    VeniceResolvedSession(cookieHeader: "session=live", sourceLabel: "Chrome B"),
+                ]
+            })
+        let result = try await strategy.fetch(Self.context(.web))
+        #expect(result.strategyID == "venice.web")
+        #expect(result.sourceLabel == "Chrome B")
+    }
+
+    @Test
+    func `descriptor presentation labels monthly quota`() throws {
+        let monthly = try VeniceWebUsageFetcher.snapshot(
+            fromClaims: Self.fixtureClaims(),
+            now: Self.fixtureNow)
+        let metadata = VeniceProviderDescriptor.descriptor.metadata
+        let monthlyLabels = VeniceProviderDescriptor.descriptor.presentation.rateWindowLabels(
+            metadata: metadata,
+            snapshot: monthly,
+            now: Self.fixtureNow)
+        #expect(monthlyLabels.primary == "Monthly credits")
+
+        let hourly = UsageSnapshot(
+            primary: RateWindow(usedPercent: 10, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            updatedAt: Self.fixtureNow,
+            identity: nil)
+        let hourlyLabels = VeniceProviderDescriptor.descriptor.presentation.rateWindowLabels(
+            metadata: metadata,
+            snapshot: hourly,
+            now: Self.fixtureNow)
+        #expect(hourlyLabels.primary == "Balance")
+    }
+
+    @Test
     func `live quota fixture maps cycle used over monthly refill`() throws {
         let snapshot = try VeniceWebUsageFetcher.snapshot(
             fromClaims: Self.fixtureClaims(),
@@ -112,6 +169,22 @@ struct VeniceWebUsageFetcherTests {
             transport: transport,
             now: Self.fixtureNow)
         #expect(((snapshot.primary?.usedPercent ?? 0) * 10000).rounded() / 10000 == 59.5556)
+    }
+
+    @Test
+    func `fetch honors caller timeout`() async throws {
+        let transport = ProviderHTTPTransportHandler { request in
+            #expect(request.timeoutInterval == 42)
+            return try Self.response(
+                request: request,
+                status: 200,
+                body: Self.sessionJSON(payload: Self.fixtureClaims()))
+        }
+        _ = try await VeniceWebUsageFetcher.fetchUsage(
+            cookieHeader: "\(VeniceCookieHeader.sessionCookieName)=session-cookie",
+            transport: transport,
+            timeout: 42,
+            now: Self.fixtureNow)
     }
 
     @Test
@@ -283,7 +356,8 @@ struct VeniceWebUsageFetcherTests {
 
     private static func context(
         _ sourceMode: ProviderSourceMode,
-        environment: [String: String] = [:]) -> ProviderFetchContext
+        environment: [String: String] = [:],
+        selectedTokenAccountID: UUID? = nil) -> ProviderFetchContext
     {
         let browserDetection = BrowserDetection(cacheTTL: 0)
         return ProviderFetchContext(
@@ -297,7 +371,8 @@ struct VeniceWebUsageFetcherTests {
             settings: nil,
             fetcher: UsageFetcher(),
             claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
-            browserDetection: browserDetection)
+            browserDetection: browserDetection,
+            selectedTokenAccountID: selectedTokenAccountID)
     }
 
     private static func response(

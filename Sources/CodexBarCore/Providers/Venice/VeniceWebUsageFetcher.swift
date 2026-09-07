@@ -8,8 +8,8 @@ import CoreFoundation
 
 public enum VeniceWebUsageFetcher {
     public static let sessionURL = URL(string: "https://outerface.venice.ai/api/user/session")!
+    public static let defaultTimeout: TimeInterval = 15
     private static let log = CodexBarLog.logger(LogCategories.provider(.venice, scope: "usage"))
-    private static let requestTimeoutSeconds: TimeInterval = 15
     private static let expirationSkew: TimeInterval = 60
     private static let saneUnixSeconds = 1_000_000_000.0...4_000_000_000.0
     private static let anonymousUserTypes: Set<String> = [
@@ -23,12 +23,13 @@ public enum VeniceWebUsageFetcher {
     public static func fetchUsage(
         cookieHeader: String,
         transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        timeout: TimeInterval = Self.defaultTimeout,
         now: Date = Date()) async throws -> UsageSnapshot
     {
         let header = try Self.requireSessionCookieHeader(cookieHeader)
         var request = URLRequest(url: self.sessionURL)
         request.httpMethod = "GET"
-        request.timeoutInterval = self.requestTimeoutSeconds
+        request.timeoutInterval = timeout
         request.setValue(header, forHTTPHeaderField: "Cookie")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
