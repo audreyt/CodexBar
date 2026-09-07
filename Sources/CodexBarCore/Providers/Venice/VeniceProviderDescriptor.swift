@@ -32,6 +32,19 @@ public enum VeniceProviderDescriptor {
 
         return ProviderDescriptor(
             id: .venice,
+            settingsSection: .init(
+                VeniceProviderSettingsKey.self,
+                cookieSettings: { settings in
+                    CookieProviderSettings(
+                        cookieSource: settings.cookieSource,
+                        manualCookieHeader: settings.manualCookieHeader)
+                },
+                credentialSettings: { context in
+                    let settings = context.cookieSettings(for: .venice)
+                    return VeniceProviderSettings(
+                        cookieSource: settings.cookieSource,
+                        manualCookieHeader: settings.manualCookieHeader)
+                }),
             credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .venice,

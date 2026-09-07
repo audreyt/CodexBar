@@ -53,6 +53,16 @@ struct VeniceWebFetchStrategy: ProviderFetchStrategy {
             throw VeniceUsageError.tokenAccountUnsupported
         }
         guard context.sourceMode == .web else { throw VeniceUsageError.missingCredentials }
+        // An explicitly stored manual cookie wins over ambient browser
+        // sessions: it is the user's deliberate credential, and it keeps web
+        // quota working where the browser profile is unreadable.
+        if context.settings?.venice?.cookieSource == .manual {
+            guard let manual = Self.manualCookieHeader(from: context) else {
+                throw VeniceUsageError.missingCredentials
+            }
+            let usage = try await self.usageLoader(manual)
+            return self.makeResult(usage: usage, sourceLabel: "manual cookie")
+        }
         let sessions = try self.sessionLoader()
         guard !sessions.isEmpty else { throw VeniceUsageError.missingCredentials }
         var lastError: (any Error)?
@@ -74,6 +84,11 @@ struct VeniceWebFetchStrategy: ProviderFetchStrategy {
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
         false
+    }
+
+    private static func manualCookieHeader(from context: ProviderFetchContext) -> String? {
+        guard context.settings?.venice?.cookieSource == .manual else { return nil }
+        return VeniceCookieHeader.header(from: context.settings?.venice?.manualCookieHeader)
     }
 
     #if os(macOS)

@@ -74,6 +74,55 @@ struct VeniceWebUsageFetcherTests {
     }
 
     @Test
+    func `manual cookie is used without browser import`() async throws {
+        let snapshot = try VeniceWebUsageFetcher.snapshot(
+            fromClaims: Self.fixtureClaims(),
+            now: Self.fixtureNow)
+        let strategy = VeniceWebFetchStrategy(
+            usageLoader: { header in
+                #expect(header == "__venice-auth.session-token=manual-abc")
+                return snapshot
+            },
+            sessionLoader: { fatalError("must not import cookies") })
+        let settings = ProviderSettingsSnapshot.make(venice: VeniceProviderSettings(
+            cookieSource: .manual,
+            manualCookieHeader: "__venice-auth.session-token=manual-abc"))
+        let result = try await strategy.fetch(Self.context(.web, settings: settings))
+        #expect(result.strategyID == "venice.web")
+        #expect(result.sourceLabel == "manual cookie")
+    }
+
+    @Test
+    func `manual source without session cookie fails`() async {
+        let strategy = VeniceWebFetchStrategy(
+            usageLoader: { _ in fatalError("must not fetch") },
+            sessionLoader: { fatalError("must not import cookies") })
+        let settings = ProviderSettingsSnapshot.make(venice: VeniceProviderSettings(
+            cookieSource: .manual,
+            manualCookieHeader: "unrelated=1"))
+        await #expect(throws: VeniceUsageError.missingCredentials) {
+            _ = try await strategy.fetch(Self.context(.web, settings: settings))
+        }
+    }
+
+    @Test
+    func `auto source ignores stored manual header`() async throws {
+        let snapshot = try VeniceWebUsageFetcher.snapshot(
+            fromClaims: Self.fixtureClaims(),
+            now: Self.fixtureNow)
+        let strategy = VeniceWebFetchStrategy(
+            usageLoader: { _ in snapshot },
+            sessionLoader: {
+                [VeniceResolvedSession(cookieHeader: "session=live", sourceLabel: "Brave")]
+            })
+        let settings = ProviderSettingsSnapshot.make(venice: VeniceProviderSettings(
+            cookieSource: .auto,
+            manualCookieHeader: "__venice-auth.session-token=manual-abc"))
+        let result = try await strategy.fetch(Self.context(.web, settings: settings))
+        #expect(result.sourceLabel == "Brave")
+    }
+
+    @Test
     func `descriptor presentation labels monthly quota`() throws {
         let monthly = try VeniceWebUsageFetcher.snapshot(
             fromClaims: Self.fixtureClaims(),
@@ -371,7 +420,8 @@ struct VeniceWebUsageFetcherTests {
     private static func context(
         _ sourceMode: ProviderSourceMode,
         environment: [String: String] = [:],
-        selectedTokenAccountID: UUID? = nil) -> ProviderFetchContext
+        selectedTokenAccountID: UUID? = nil,
+        settings: ProviderSettingsSnapshot? = nil) -> ProviderFetchContext
     {
         let browserDetection = BrowserDetection(cacheTTL: 0)
         return ProviderFetchContext(
@@ -382,7 +432,7 @@ struct VeniceWebUsageFetcherTests {
             webDebugDumpHTML: false,
             verbose: false,
             env: environment,
-            settings: nil,
+            settings: settings,
             fetcher: UsageFetcher(),
             claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
             browserDetection: browserDetection,
