@@ -39,7 +39,9 @@ public enum GrokTokenRefresher {
         session transport: any ProviderHTTPTransport,
         now: Date = Date()) async throws -> GrokCredentials
     {
-        guard let refreshToken = credentials.refreshToken, !refreshToken.isEmpty else {
+        guard let refreshToken = credentials.refreshToken?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !refreshToken.isEmpty
+        else {
             throw RefreshError.missingRefreshToken
         }
 
@@ -72,7 +74,7 @@ public enum GrokTokenRefresher {
                 throw RefreshError.invalidResponse("Missing access_token")
             }
             guard let expiresIn = Self.expiresIn(from: json["expires_in"]), expiresIn > 0 else {
-                throw RefreshError.invalidResponse("Missing expires_in")
+                throw RefreshError.invalidResponse("Invalid expires_in")
             }
             let newRefreshToken = Self.nonEmptyString(json["refresh_token"]) ?? refreshToken
 

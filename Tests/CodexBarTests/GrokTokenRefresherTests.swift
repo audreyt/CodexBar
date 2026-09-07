@@ -135,6 +135,20 @@ struct GrokTokenRefresherTests {
     }
 
     @Test
+    func `whitespace refresh token is rejected as missing`() async {
+        let transport = ProviderHTTPTransportStub { _ in fatalError("must not send") }
+        do {
+            _ = try await GrokTokenRefresher.refresh(
+                Self.credentials(refreshToken: "  "),
+                session: transport)
+            Issue.record("expected missingRefreshToken")
+        } catch GrokTokenRefresher.RefreshError.missingRefreshToken {
+        } catch {
+            Issue.record("wrong error: \(error)")
+        }
+    }
+
+    @Test
     func `refresh preserves team principal`() async throws {
         let responseBody = Data(#"{"access_token":"fresh-access","expires_in":3600}"#.utf8)
         let transport = ProviderHTTPTransportStub { request in
