@@ -9,6 +9,7 @@
 - Codex local costs: reuse model pricing resolution across daily, project, and session report rows without changing token accounting, tariffs, or refresh cadence (#3476). Thanks @brzvsk!
 
 ### Fixed
+- Grok: recover expired xAI OIDC credentials through the shared CLI owner before OAuth billing, preserving the reloaded account and team metadata without adding a CodexBar credential writer.
 - Updates: adopt Sparkle 2.9.6 installer hardening, including archive-moving and package-signature validation fixes.
 - Claude: preserve claude-swap's source measurement timestamps so repeated reads of cached usage do not show as freshly updated; retain the existing fallback for missing or malformed optional timestamps (#3485, extracted from #3452). Thanks @QuantIntellect!
 - CLI login: share Codex and Kiro process handling, stop cancelled logins and lingering children, and preserve bounded timeout output and device-flow progress.
