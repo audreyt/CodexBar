@@ -763,6 +763,7 @@ enum SpendDashboardSource {
         encoder.append(snapshot.updatedAt.timeIntervalSinceReferenceDate)
         encoder.append(snapshot.last30DaysTokens)
         encoder.append(snapshot.last30DaysCostUSD)
+        encoder.append(snapshot.last30DaysRequests)
         encoder.append(snapshot.daily.count)
         for entry in snapshot.daily {
             encoder.append(entry.date)
@@ -842,7 +843,8 @@ enum SpendDashboardSource {
         providers.compactMap { provider in
             // Provider-specific by design: spend dashboard
             guard provider != .codex else { return nil }
-            var config = settings.providerConfig(for: provider) ?? ProviderConfig(id: provider.instanceID)
+            var config = (settings.providerConfig(for: provider) ?? ProviderConfig(id: provider.instanceID))
+                .fetchIdentityConfig
             config.enabled = nil
             config.quotaWarnings = nil
             // The dashboard follows the effective account, not the whole saved-account collection.

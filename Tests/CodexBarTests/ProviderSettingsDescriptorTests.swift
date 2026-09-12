@@ -408,22 +408,17 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
-    func `claude daily routines toggle follows global optional usage setting`() throws {
-        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-claude-routines")
-        let context = fixture.settingsContext(provider: .claude)
-        let toggles = ClaudeProviderImplementation().settingsToggles(context: context)
-        let routinesToggle = try #require(toggles.first {
+    func `provider implementations omit superseded one-off usage visibility toggles`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-shared-usage-items")
+        let claudeContext = fixture.settingsContext(provider: .claude)
+        let codexContext = fixture.settingsContext(provider: .codex)
+
+        #expect(!ClaudeProviderImplementation().settingsToggles(context: claudeContext).contains {
             $0.id == "claude-daily-routines-usage-visible"
         })
-
-        #expect(routinesToggle.binding.wrappedValue)
-        #expect(routinesToggle.isEnabled?() == true)
-
-        routinesToggle.binding.wrappedValue = false
-        #expect(fixture.settings.claudeDailyRoutinesUsageVisible == false)
-
-        fixture.settings.showOptionalCreditsAndExtraUsage = false
-        #expect(routinesToggle.isEnabled?() == false)
+        #expect(!CodexProviderImplementation().settingsToggles(context: codexContext).contains {
+            $0.id == "codex-spark-usage-visible"
+        })
     }
 
     @Test
@@ -578,6 +573,39 @@ struct ProviderSettingsDescriptorTests {
         #expect(field.title == "Manual GitHub Cookie header")
         #expect(field.subtitle.contains("Treat this value like a password"))
         #expect(field.actions.map(\.id) == ["refresh-copilot-budget-cookie"])
+    }
+
+    @Test
+    func `copilot seat credit entitlement field writes through to the settings snapshot`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-copilot-seat-entitlement")
+        let context = fixture.settingsContext(provider: .copilot)
+
+        let fields = CopilotProviderImplementation().settingsFields(context: context)
+        let field = try #require(fields.first { $0.id == "copilot-seat-credit-entitlement" })
+        field.binding.wrappedValue = "3000"
+
+        #expect(fixture.settings.copilotSeatCreditEntitlementRaw == "3000")
+        #expect(fixture.settings.copilotSettingsSnapshot(tokenOverride: nil).seatCreditEntitlement == 3000)
+    }
+
+    @Test
+    func `copilot seat credit entitlement field writes to the selected account`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-copilot-seat-account")
+        fixture.settings.copilotSeatCreditEntitlementRaw = "3000"
+        fixture.settings.addTokenAccount(provider: .copilot, label: "Work", token: "token-1")
+        let context = fixture.settingsContext(provider: .copilot)
+
+        let fields = CopilotProviderImplementation().settingsFields(context: context)
+        let field = try #require(fields.first { $0.id == "copilot-seat-credit-entitlement" })
+        // The field surfaces the global fallback until the account sets its own value.
+        #expect(field.binding.wrappedValue == "3000")
+
+        field.binding.wrappedValue = "1500"
+
+        let account = try #require(fixture.settings.selectedTokenAccount(for: .copilot))
+        #expect(account.seatCreditEntitlement == "1500")
+        #expect(fixture.settings.copilotSeatCreditEntitlementRaw == "3000")
+        #expect(fixture.settings.copilotSettingsSnapshot(tokenOverride: nil).seatCreditEntitlement == 1500)
     }
 
     @Test

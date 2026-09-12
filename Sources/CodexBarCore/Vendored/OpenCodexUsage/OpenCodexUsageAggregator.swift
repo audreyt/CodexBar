@@ -88,11 +88,10 @@ enum OpenCodexUsageAggregator {
         // `windowed` is sorted by timestamp, so the day/hour memos hit on almost every entry; a miss only costs one
         // Calendar interval lookup. Price once per entry and reuse it for the day, session and hour merges.
         var windowTokens = CostUsageDailyReport.OptionalCountAccumulator()
-        let summaryStart = calendar.date(byAdding: .day, value: -(min(30, days) - 1), to: today) ?? today
         var dayMemo = LocalDayKeyMemo()
         var hourMemo = HourStartMemo()
         for entry in windowed {
-            if entry.timestamp >= summaryStart { windowTokens.merge(entry.resolvedTotalCount) }
+            windowTokens.merge(entry.resolvedTotalCount)
             let cost = Self.listPriceUSD(
                 entry: entry,
                 customPricing: customPricing,
@@ -162,7 +161,7 @@ enum OpenCodexUsageAggregator {
             daily: daily,
             sessions: Array(sessionRows.prefix(64)),
             updatedAt: now)
-            .summary(forLastDays: min(30, days), calendar: calendar)
+            .summary(forLastDays: days, calendar: calendar)
 
         return CostUsageTokenSnapshot(
             sessionTokens: todayEntry == nil && !daily.isEmpty ? 0 : todayEntry?.totalTokens,

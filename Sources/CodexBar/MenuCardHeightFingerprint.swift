@@ -18,6 +18,7 @@ extension UsageMenuCardView.Model {
             MenuCardHeightFingerprint.field("placeholder", self.placeholder),
             MenuCardHeightFingerprint.field("credits", self.creditsText),
             "creditsRemaining=\(self.creditsRemaining.map(String.init(describing:)) ?? "nil")",
+            "creditsShowProgress=\(self.creditsShowProgress)",
             MenuCardHeightFingerprint.field("creditsHint", self.creditsHintText),
             MenuCardHeightFingerprint.field("creditsCopy", self.creditsHintCopyText),
             "codexResetCredits=\(self.codexResetCredits?.heightFingerprint ?? "")",
@@ -43,9 +44,11 @@ extension [ProviderDetailSection] {
                 MenuCardHeightFingerprint.field("title", section.title),
                 MenuCardHeightFingerprint.join(section.rows.map { row in
                     MenuCardHeightFingerprint.join([
+                        MenuCardHeightFingerprint.field("id", row.id),
                         MenuCardHeightFingerprint.field("label", row.label),
                         MenuCardHeightFingerprint.field("value", row.value),
                         MenuCardHeightFingerprint.field("secondary", row.secondaryValue),
+                        "progress=\(row.progress == nil ? "0" : "1")",
                     ])
                 }),
                 section.chart.map { chart in
