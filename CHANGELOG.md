@@ -5,6 +5,9 @@
 ### Added
 - Muse Code: show the Muse CLI subscription 5-hour and weekly usage windows from `POST /muse-code/key` using the CLI Keychain login (refs #3409).
 
+### Fixed
+- Antigravity: suppress remote model variants that exactly mirror a known pool and reset, preserve distinct quota rows and their saved visibility, and prefer known usage over reset-only duplicates (#3583). Thanks @hhh2210!
+
 ## 0.60.0 — 2026-09-12
 
 ### Highlights

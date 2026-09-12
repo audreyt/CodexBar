@@ -243,6 +243,7 @@ shared OAuth file can still be used as a fallback credential source.
 - Antigravity exposes many model rows, but current local payloads show them collapsing into two real usage pools:
   Gemini and Claude/GPT. Detailed usage should not list every raw Gemini tier unless a future source exposes a genuinely
   distinct unknown or consumed quota window.
+- Remote non-selectable variants are omitted only when their known remaining fraction and concrete reset timestamp exactly match the selected pool representative. Local rows, unknown usage, differing fractions, and missing or different reset timestamps remain distinct. Extra rows retain canonical model IDs; equal display titles do not establish a shared quota identity. When one canonical model has both known and reset-only observations, known usage wins.
 - Some Antigravity local/CLI model config entries include reset metadata but omit `remainingFraction`. Those windows stay
   in `extraRateWindows` for reset context and are marked with `usageKnown: false`; clients should not render their
   `usedPercent` as a real exhausted quota.
