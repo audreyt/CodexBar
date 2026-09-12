@@ -84,9 +84,9 @@ Admin API key setup:
   - `seven_day_routines` / `seven_day_cowork` → Daily Routines extra window.
   - Claude Design/Omelette keys are ignored because Claude Design shares the main Claude usage limit.
   - `extra_usage` → Extra usage cost (monthly spend/limit).
-- Preferences → Providers → Claude → Show Daily Routines usage hides only the Daily Routines row in menus and the
-  provider preview. The global optional credits and extra usage setting is its master switch. The Claude-specific
-  setting does not change fetching, history, notifications, widgets, model-scoped weekly limits, hooks, or CLI output.
+- Preferences → Providers → Claude → Visible usage items lets you hide the Daily Routines row in menus, the Settings
+  preview, and Overview. The global optional credits and extra usage setting remains its master switch. Hiding this
+  row does not change fetching, history, notifications, widgets, model-scoped weekly limits, hooks, or CLI output.
 - Preferences → Providers → Claude → Show model-specific weekly usage in widgets controls model-scoped weekly quota
   rows in desktop widgets. It is off by default; turning it on displays every known Claude window with a
   `claude-weekly-scoped-` identifier (for example, Fable). Turning it back off also drops scoped rows that a previous
@@ -159,9 +159,14 @@ The accepted multi-account design in
   weekly windows from `usage.scoped`. Identity stays `claude-swap:<slot>`; organization name and alias are never
   used as identity. When two or more slots share an email, cards append ` · organizationName` or ` · Account N`;
   a user-chosen cswap alias replaces that label. Unique emails stay email-only.
-- Display: when claude-swap reports more than one account, the Claude menu and `codexbar cards` show one card per
-  account (active account first, then numeric slot) instead of ambient/token-account Claude cards. With four or more
-  accounts the app menu switches to a compact layout (`AccountMenuLayoutPlanner`): the active account keeps its full
+- Display: when claude-swap reports more than one account, its accounts replace ambient/token-account Claude cards.
+  The app honors **Menu → Multi-account layout**: Segmented shows account buttons and one active account card;
+  pending or failed switches show the requested account's details while the active marker stays source-owned.
+  Expired or otherwise unavailable accounts remain inspectable without activation; selecting the active account
+  returns to its card. If the adapter reports no active account, the menu says so instead of selecting the first row.
+  Buttons wrap into two rows above three accounts. Hide Personal Info uses stable `Account N` slot labels.
+  Stacked shows one card per account (active account first, then numeric slot). With four or more
+  accounts the stacked menu switches to a compact layout (`AccountMenuLayoutPlanner`): the active account keeps its full
   card, inactive accounts become one-line rows sorted by remaining headroom (most constrained first, red/amber below
   50%/10% left, a star on the healthiest activatable account), and healthy rows fold behind a "N more accounts ready"
   summary row. Clicking a compact row expands that account's full card for the current menu session; the summary row
