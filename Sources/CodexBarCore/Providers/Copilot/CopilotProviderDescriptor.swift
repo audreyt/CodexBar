@@ -115,7 +115,8 @@ struct CopilotAPIFetchStrategy: ProviderFetchStrategy {
         }
         let fetcher = CopilotUsageFetcher(
             token: token,
-            enterpriseHost: context.settings?.copilot?.enterpriseHost)
+            enterpriseHost: context.settings?.copilot?.enterpriseHost,
+            seatEntitlement: context.settings?.copilot?.seatCreditEntitlement)
         let usage = try await fetcher.fetch()
         let snap = await self.addBudgetWindowsIfNeeded(to: usage, token: token, context: context)
         return self.makeResult(
@@ -140,6 +141,7 @@ struct CopilotAPIFetchStrategy: ProviderFetchStrategy {
         context: ProviderFetchContext) async -> UsageSnapshot
     {
         guard let settings = context.settings?.copilot,
+              CopilotUsageFetcher.apiHost(enterpriseHost: settings.enterpriseHost) == "api.github.com",
               settings.budgetExtrasEnabled,
               settings.budgetCookieSource != .off
         else { return usage }

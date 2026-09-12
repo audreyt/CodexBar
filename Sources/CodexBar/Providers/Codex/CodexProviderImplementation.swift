@@ -106,21 +106,6 @@ struct CodexProviderImplementation: ProviderImplementation {
                 onAppDidBecomeActive: nil,
                 onAppearWhenEnabled: nil),
             ProviderSettingsToggleDescriptor(
-                id: "codex-spark-usage-visible",
-                title: "Show Codex Spark usage",
-                subtitle: [
-                    "Shows Codex Spark quota rows in the menu and provider preview.",
-                    "Requires optional credits and extra usage in Display settings.",
-                ].joined(separator: " "),
-                binding: context.boolBinding(\.codexSparkUsageVisible),
-                statusText: nil,
-                actions: [],
-                isVisible: nil,
-                isEnabled: { context.settings.showOptionalCreditsAndExtraUsage },
-                onChange: nil,
-                onAppDidBecomeActive: nil,
-                onAppearWhenEnabled: nil),
-            ProviderSettingsToggleDescriptor(
                 id: "codex-openai-web-extras",
                 title: "OpenAI web extras",
                 subtitle: [
@@ -251,11 +236,17 @@ struct CodexProviderImplementation: ProviderImplementation {
               context.metadata.supportsCredits
         else { return }
 
-        if let credits = context.store.credits {
-            let remaining = credits.codexCreditLimit?.remaining ?? credits.remaining
-            entries.append(.text(
-                String(format: L("credits_remaining"), UsageFormatter.creditsString(from: remaining)),
-                .primary))
+        if let credits = CodexExtraUsageCost.creditsForDisplay(
+            context.store.credits,
+            attached: context.snapshot?.providerCost)
+        {
+            if let remaining = credits.displayRemaining {
+                entries.append(.text(
+                    String(format: L("credits_remaining"), UsageFormatter.creditsString(from: remaining)),
+                    .primary))
+            } else {
+                entries.append(.text("\(L("Credits")) · \(L("Balance")): \(L("Unavailable"))", .secondary))
+            }
             if let limit = credits.codexCreditLimit {
                 var parts = [
                     L("%@ used", UsageFormatter.creditsNumberString(from: limit.used)),

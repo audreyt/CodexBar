@@ -19,6 +19,8 @@ struct CostUsagePricingTests {
         #expect(CostUsagePricing.normalizeCodexModel("openai/gpt-5.6-terra") == "gpt-5.6-terra")
         #expect(CostUsagePricing.normalizeCodexModel("gpt-5.6-luna") == "gpt-5.6-luna")
         #expect(CostUsagePricing.normalizeCodexModel("gpt-5.6") == "gpt-5.6-sol")
+        #expect(CostUsagePricing.normalizeCodexModel("gpt-reserve") == "gpt-5.6-luna")
+        #expect(CostUsagePricing.normalizeCodexModel("openai/gpt-reserve") == "gpt-5.6-luna")
         // Fictitious dated suffixes only exercise normalize stripping (not released snapshot IDs).
         #expect(CostUsagePricing.normalizeCodexModel("gpt-5.6-sol-2099-01-01") == "gpt-5.6-sol")
         #expect(CostUsagePricing.normalizeCodexModel("openai/gpt-5.6-terra-2099-01-01") == "gpt-5.6-terra")
@@ -239,6 +241,12 @@ struct CostUsagePricingTests {
             cachedInputTokens: 10,
             outputTokens: 5,
             modelsDevCacheRoot: root)
+        let reserve = CostUsagePricing.codexCostUSD(
+            model: "gpt-reserve",
+            inputTokens: 100,
+            cachedInputTokens: 10,
+            outputTokens: 5,
+            modelsDevCacheRoot: root)
         let alias = CostUsagePricing.codexCostUSD(
             model: "gpt-5.6",
             inputTokens: 100,
@@ -251,6 +259,7 @@ struct CostUsagePricingTests {
         #expect(sol == (90.0 * 5e-6) + (10.0 * 5e-7) + (5.0 * 3e-5))
         #expect(terra == (90.0 * 2e-6) + (10.0 * 2e-7) + (5.0 * 1.2e-5))
         #expect(luna == (90.0 * 2e-7) + (10.0 * 2e-8) + (5.0 * 1.2e-6))
+        #expect(reserve == luna)
         // Unsuffixed gpt-5.6 alias routes to Sol.
         #expect(alias == sol)
     }
@@ -751,25 +760,29 @@ struct CostUsagePricingTests {
     @Test
     func `codex aggregate pricing uses safe base rates and rejects aggregates above thresholds`() throws {
         let emptyRoot = try Self.cacheRoot()
-        let bundledBelowThreshold = CostUsagePricing.codexAggregateCostUSD(
+        let bundledBelowThreshold = CostUsagePricing.codexCostUSD(
+            aggregate: true,
             model: "gpt-5.6-sol",
             inputTokens: 200_000,
             cachedInputTokens: 0,
             outputTokens: 100,
             modelsDevCacheRoot: emptyRoot)
-        let bundledAtThreshold = CostUsagePricing.codexAggregateCostUSD(
+        let bundledAtThreshold = CostUsagePricing.codexCostUSD(
+            aggregate: true,
             model: "gpt-5.6-sol",
             inputTokens: 272_000,
             cachedInputTokens: 0,
             outputTokens: 100,
             modelsDevCacheRoot: emptyRoot)
-        let bundledAboveThreshold = CostUsagePricing.codexAggregateCostUSD(
+        let bundledAboveThreshold = CostUsagePricing.codexCostUSD(
+            aggregate: true,
             model: "gpt-5.6-sol",
             inputTokens: 400_000,
             cachedInputTokens: 0,
             outputTokens: 100,
             modelsDevCacheRoot: emptyRoot)
-        let linear = CostUsagePricing.codexAggregateCostUSD(
+        let linear = CostUsagePricing.codexCostUSD(
+            aggregate: true,
             model: "gpt-5.4-mini",
             inputTokens: 400_000,
             cachedInputTokens: 100_000,
@@ -792,13 +805,15 @@ struct CostUsagePricingTests {
           }
         }
         """)
-        let catalogAtThreshold = CostUsagePricing.codexAggregateCostUSD(
+        let catalogAtThreshold = CostUsagePricing.codexCostUSD(
+            aggregate: true,
             model: "aggregate-threshold-model",
             inputTokens: 200_000,
             cachedInputTokens: 0,
             outputTokens: 100,
             modelsDevCacheRoot: catalogThresholdRoot)
-        let catalogAboveThreshold = CostUsagePricing.codexAggregateCostUSD(
+        let catalogAboveThreshold = CostUsagePricing.codexCostUSD(
+            aggregate: true,
             model: "aggregate-threshold-model",
             inputTokens: 200_001,
             cachedInputTokens: 0,

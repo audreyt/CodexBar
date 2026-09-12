@@ -20,11 +20,15 @@ Copilot uses GitHub OAuth device flow and the Copilot internal usage API for pri
      - set Copilot `enterpriseHost` in `~/.codexbar/config.json` or the provider settings UI
      - CodexBar normalizes values such as `https://octocorp.ghe.com/login` to `octocorp.ghe.com`
      - device flow uses `https://<enterpriseHost>/login/...`
+     - identity lookup uses `https://api.<enterpriseHost>/user`, matching the usage API host
+     - default HTTPS ports and trailing host dots normalize to the same issuer; nondefault ports remain distinct
    - Scope: `read:user`.
    - Token stored in config:
      - `~/.codexbar/config.json` → `providers[].apiKey` for `copilot`
      - token accounts use `providers[].tokenAccounts`
      - Legacy token matching honors a resolved stable GitHub user ID; display-label fallback is used only when token identity is unavailable and no verified match exists.
+     - Enterprise accounts match by API host and numeric user ID. They never adopt a public or unidentified legacy account merely because its login or label matches. The configured host still controls requests; stored account identifiers do not select an endpoint.
+     - Enterprise sign-in requires a resolved identity. A cancelled sign-in or a host change while it is pending leaves saved accounts unchanged.
 
 2) **Usage fetch**
    - `GET https://api.github.com/copilot_internal/user`
@@ -38,6 +42,7 @@ Copilot uses GitHub OAuth device flow and the Copilot internal usage API for pri
      - `X-Github-Api-Version: 2025-04-01`
 
 3) **Budget fetch** (optional GitHub web endpoint, best-effort)
+   - Available only for the public GitHub host. Enterprise quota fetches skip public identity and browser-cookie budget enrichment.
    - Disabled by default. The Copilot provider's "Budget extras" setting must be enabled before CodexBar imports
      github.com cookies or renders budget bars.
    - CodexBar asks the logged-in GitHub web endpoint for customer-scope budgets:
@@ -60,11 +65,42 @@ Copilot uses GitHub OAuth device flow and the Copilot internal usage API for pri
   is enabled.
   - Product budget: `copilot`
   - SKU budgets: `copilot_premium_request`, `copilot_agent_premium_request`, `spark_premium_request`
+- Seat AI credits: `quota_snapshots.premium_interactions.credits_used` → the shared "Credits used" provider-detail
+  row, shown only when it carries real signal (token-based billing, unlimited quota, nonzero credits, or a
+  configured seat entitlement) so a metered Pro/Individual seat never grows a permanent "0 credits used" row.
+  Deliberately not summed with `chat`/`completions` credits — GitHub can report the same pool under multiple
+  snapshot keys, and summing would double-count.
 - Reset dates are not provided by the API.
 - Plan label from `copilotPlan`.
+
+## AI credit entitlements
+GitHub does not publish an included-credit entitlement on any documented endpoint — all 8 billing endpoints plus
+`budgets`, `cost-centers`, and `usage/summary` were probed, and none returns a ceiling for the seat. The denominator
+is therefore user-entered:
+- Preferences → Providers → Copilot → "Included AI credits (per seat)"
+
+A configured entitlement turns the row into a progress bar ("31 / 3000") via the shared provider-detail row's
+optional progress ratio. Without one, the row stays plain text, because a bar would imply a limit CodexBar cannot
+actually know. Either way the row also carries the numeric credits used (`usageValue`), so editing or clearing
+the entitlement rewrites the cached row (text ↔ bar) immediately, even when the follow-up refresh never lands
+(offline, token lost, 401).
+
+## Manual seat credit allowance
+
+For token-billed seats, **Seat AI credit allowance** optionally turns the menu card's Credits used text into a progress
+bar. Enter a positive monthly credit allowance; no ceiling is inferred from the plan. This is a local display preference,
+separate from Budget extras, and does not set a GitHub billing limit. Icon, widget, and CLI quota windows are unchanged.
+
+Each saved account can override the legacy global allowance. Clearing an override restores that fallback, or returns to
+text if no fallback exists. **Clear default allowance** removes the legacy fallback while retaining explicit account
+overrides; accounts inheriting that default return to text immediately, including while offline. Edits update the matching cached account without
+changing its usage timestamp. Switching accounts preserves each account's usage; changing a credential or enterprise
+host still invalidates its cached data. A refresh already in flight uses the current allowance when it publishes, so a
+late successful response cannot restore a cleared default.
 
 ## Key files
 - `Sources/CodexBarCore/Providers/Copilot/CopilotUsageFetcher.swift`
 - `Sources/CodexBarCore/Providers/Copilot/CopilotDeviceFlow.swift`
+- `Sources/CodexBarCore/Providers/Copilot/CopilotCreditEntitlementParser.swift`
 - `Sources/CodexBar/Providers/Copilot/CopilotLoginFlow.swift`
 - `Sources/CodexBar/CopilotTokenStore.swift` (legacy migration helper)

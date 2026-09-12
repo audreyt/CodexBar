@@ -80,6 +80,13 @@ actor CostUsageStore {
         parserHash: CodexParserHash.value)
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "4969a789db679c93", // 0.58.0 native rows, checkpoints, and reports survive queue reordering.
+        "c4fa7db2cf54bc41", // Parser revisions reparse older native files while preserving stored rows and checkpoints.
+        "ca4bc3875600536f", // Reserve pricing stores retain compatible rows and checkpoints.
+        "7f00691fa96c78d1", // Current-main row and checkpoint formats remain compatible.
+        "9ca89383b9957b07", // Warm refresh cursor retention preserves native rows, checkpoints, and reports.
+        "9547dc9d7b7675f6", // Report lookup memos preserve native usage rows and checkpoints.
+        "ba2eca901de4c53d", // Shared report accumulation preserves native usage rows and checkpoints.
         "2590d36e1cc4a2ea", // Lazy token history reads preserve persisted rows and scan checkpoints.
         "edd0a6ad56c0e4e7", // Astra pricing changes report costs without changing native rows or scan checkpoints.
         "f043ae98075c8e4d", // Retained scan-range scheduling preserves native rows, checkpoints, and reports.
