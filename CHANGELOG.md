@@ -12,6 +12,7 @@
 - Codex costs: avoid rewriting unchanged retained file state when another session or scan metadata changes, reducing local history disk writes (#3882).
 - Website: refresh the social preview image for all 80 providers, include the newest integrations, and invalidate cached previews when the card changes.
 - Muse Code: check the CLI-owned Keychain item's access list before requesting its token, so refreshes fail promptly when access would require a prompt, and discover logins without reading secrets (#3916). Thanks @audreyt!
+- Muse Code: when the CLI mint response omits quota, read the 5-hour and weekly windows from the Meta dashboard session whose account matches the Muse login, instead of showing no bars.
 
 ## 0.65.0 — 2026-09-22
 

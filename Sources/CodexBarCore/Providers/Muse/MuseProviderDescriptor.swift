@@ -1,4 +1,5 @@
 import Foundation
+import SweetCookieKit
 
 public enum MuseProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
@@ -18,6 +19,7 @@ public enum MuseProviderDescriptor {
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .muse,
+            settingsSection: .init(MuseProviderSettingsKey.self, cookieSettings: CookieProviderSettings.self),
             credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .muse,
@@ -32,8 +34,9 @@ public enum MuseProviderDescriptor {
                 cliName: "muse",
                 defaultEnabled: false,
                 widgetSelectable: false,
-                dashboardURL: "https://dev.meta.ai",
-                subscriptionDashboardURL: "https://dev.meta.ai",
+                browserCookieOrder: self.browserCookieOrder,
+                dashboardURL: "https://dev.meta.ai/usage",
+                subscriptionDashboardURL: "https://dev.meta.ai/usage",
                 statusPageURL: nil),
             branding: ProviderBranding(
                 iconStyle: .init(provider: .muse),
@@ -63,6 +66,19 @@ public enum MuseProviderDescriptor {
                 versionDetector: nil,
                 supportsCostCommand: true))
     }
+
+    private static var browserCookieOrder: BrowserCookieImportOrder? {
+        #if os(macOS)
+        [.chrome]
+        #else
+        nil
+        #endif
+    }
+}
+
+public enum MuseProviderSettingsKey: ProviderSettingsSectionKey {
+    public static let providerID = ProviderInstanceID.muse
+    public typealias Section = CookieProviderSettings
 }
 
 struct MuseOAuthFetchStrategy: ProviderFetchStrategy {
@@ -76,7 +92,13 @@ struct MuseOAuthFetchStrategy: ProviderFetchStrategy {
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let token = try MuseCredentials.accessToken(environment: context.env)
         let runtime = try ProviderPluginRuntime(bundledPlugin: "muse")
-        let snapshot = try await runtime.fetchUsage(secrets: ["MUSE_DEVICE_TOKEN": token])
+        let cookies = ProviderPluginCookieBroker(
+            provider: .muse, domains: runtime.manifest.cookieDomains, context: context)
+        let snapshot = try await runtime.fetchUsage(
+            secrets: ["MUSE_DEVICE_TOKEN": token],
+            cookieSource: cookies.cookieSource,
+            cookieInvalidator: { cookies.rejectCookie(domain: $0) },
+            cookieResolver: { _, domain in try cookies.cookieHeader(domain: domain) })
         return self.makeResult(usage: snapshot, sourceLabel: "oauth")
     }
 

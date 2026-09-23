@@ -49,6 +49,80 @@ struct MusePluginTests {
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
+    func `dashboard quota restores bars for the matching Muse login`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let result = try await Self.fetchDashboard(mint: Self.activeWithoutWindows, engine: engine)
+        let snapshot = result.snapshot
+        #expect(snapshot.primary?.usedPercent == 0)
+        #expect(snapshot.primary?.windowMinutes == 300)
+        #expect(snapshot.primary?.resetsAt == nil)
+        #expect(abs((snapshot.secondary?.usedPercent ?? -1) - (309_178_895_380.0 / 1_200_000_000_000.0 * 100)) < 0.0001)
+        #expect(snapshot.secondary?.windowMinutes == 10080)
+        #expect(snapshot.secondary?.resetsAt == Date(timeIntervalSince1970: 1_790_553_600))
+        #expect(snapshot.identity?.accountEmail == "ada@example.com")
+        #expect(snapshot.dataConfidence == .exact)
+        let rows = snapshot.details.flatMap(\.rows)
+        #expect(rows.contains { $0.label == "Plan" && $0.value == "Muse Code Power Usage" })
+        #expect(rows.contains { $0.label == "5 hours" } && rows.contains { $0.label == "Weekly" })
+        #expect(!rows.contains { $0.label == "Quota" })
+        #expect(result.rejectedDomains.isEmpty)
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `dashboard quota from a different account cannot replace CLI identity`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let result = try await Self.fetchDashboard(
+            mint: Self.activeWithoutWindows,
+            engine: engine,
+            responses: ["https://dev.meta.ai/api/auth/me": (200, #"{"email":"other@example.com"}"#)])
+        Self.expectQuotaUnavailable(result.snapshot, reason: "does not match")
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `expired dashboard session is rejected without failing the CLI login`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let result = try await Self.fetchDashboard(
+            mint: Self.activeWithoutWindows,
+            engine: engine,
+            responses: ["https://dev.meta.ai/api/auth/me": (401, "{}")])
+        Self.expectQuotaUnavailable(result.snapshot, reason: "session expired")
+        #expect(result.rejectedDomains == ["dev.meta.ai"])
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `unrecognized dashboard quota keeps the CLI identity`(engine: ProviderPluginEngineKind) async throws {
+        var responses = Self.dashboardResponses
+        responses["https://dev.meta.ai/api/portal/teams/2143643292914226/subscription-quota"] = (
+            200,
+            Self.dashboardQuota.replacingOccurrences(of: #""1200000000000""#, with: #""-1""#))
+        let result = try await Self.fetchDashboard(
+            mint: Self.activeWithoutWindows,
+            engine: engine,
+            responses: responses)
+        Self.expectQuotaUnavailable(result.snapshot, reason: "format was not recognized")
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `disabled dashboard cookies never reach the dashboard`(engine: ProviderPluginEngineKind) async throws {
+        let result = try await Self.fetchDashboard(
+            mint: Self.activeWithoutWindows,
+            engine: engine,
+            responses: [:],
+            cookieSource: .off)
+        Self.expectQuotaUnavailable(result.snapshot, reason: "cookies are off")
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `reported mint quota never consults the dashboard`(engine: ProviderPluginEngineKind) async throws {
+        let result = try await Self.fetchDashboard(mint: Self.account, engine: engine, responses: [:])
+        #expect(result.snapshot.primary?.usedPercent == 96)
+        #expect(result.snapshot.dataConfidence == .exact)
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
     func `JSON request sends only the device credential and fixed API version`(
         engine: ProviderPluginEngineKind) async throws
     {
@@ -117,7 +191,9 @@ struct MusePluginTests {
         #expect(!rows.contains { $0.label == "5 hours" || $0.label == "Weekly" })
     }
 
-    @Test(arguments: [#"{"is_subs_active":true,"subs_usage":"window"}"#], BundledPluginTestSupport.engines)
+    @Test(
+        arguments: [#""window""#, "false", "[]", "{}"].map { #"{"is_subs_active":true,"subs_usage":\#($0)}"# },
+        BundledPluginTestSupport.engines)
     func `non-object quota payload remains a parse failure`(
         body: String,
         engine: ProviderPluginEngineKind) async
@@ -142,6 +218,19 @@ struct MusePluginTests {
         #expect(snapshot.secondary?.resetsAt != nil)
     }
 
+    static let dashboardQuota = """
+    {"subscription_quota":{"tier":"Muse Code Power Usage","as_of":1790072435,
+      "window_weighted_limit":"400000000000","window_duration_secs":18000,
+      "weekly_weighted_limit":"1200000000000","weekly_resets_at":1790553600,
+      "window_weighted_used":"0","weekly_weighted_used":"309178895380"}}
+    """
+
+    static let dashboardResponses: [String: (Int, String)] = [
+        "https://dev.meta.ai/api/auth/me": (200, #"{"email":"Ada@Example.com"}"#),
+        "https://dev.meta.ai/api/portal/teams": (200, #"{"teams":[{"team_id":"2143643292914226"}]}"#),
+        "https://dev.meta.ai/api/portal/teams/2143643292914226/subscription-quota": (200, Self.dashboardQuota),
+    ]
+
     static func fetch(
         _ body: String,
         engine: ProviderPluginEngineKind,
@@ -156,6 +245,54 @@ struct MusePluginTests {
         return try await runtime.fetchUsage(
             secrets: ["MUSE_DEVICE_TOKEN": "dca:fixture-token"],
             now: Date(timeIntervalSince1970: 1_788_580_000))
+    }
+
+    /// Unlisted dashboard URLs are recorded as failures, so an empty table proves no dashboard request was made.
+    static func fetchDashboard(
+        mint: String,
+        engine: ProviderPluginEngineKind,
+        responses: [String: (Int, String)] = Self.dashboardResponses,
+        cookieSource: ProviderCookieSource = .auto) async throws -> (snapshot: UsageSnapshot, rejectedDomains: [String])
+    {
+        let runtime = try BundledPluginTestSupport.runtime(
+            "muse",
+            engine: engine,
+            transport: ProviderHTTPTransportHandler { request in
+                let url = try #require(request.url?.absoluteString)
+                if url == "https://api.meta.ai/muse-code/key" {
+                    #expect(request.value(forHTTPHeaderField: "Cookie") == nil)
+                    return try Self.response(request, body: mint)
+                }
+                #expect(request.value(forHTTPHeaderField: "Cookie") == "llama_dev_sess=synthetic")
+                #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+                guard let (status, body) = responses[url] else {
+                    Issue.record("Unexpected dashboard request \(url)")
+                    return try Self.response(request, body: "{}", status: 404)
+                }
+                return try Self.response(request, body: body, status: status)
+            })
+        let rejected = LockIsolated<[String]>([])
+        let snapshot = try await runtime.fetchUsage(
+            secrets: ["MUSE_DEVICE_TOKEN": "dca:fixture-token"],
+            now: Date(timeIntervalSince1970: 1_788_580_000),
+            cookieSource: cookieSource,
+            cookieInvalidator: { rejected.setValue(rejected.value + [$0]) },
+            cookieResolver: { provider, domain in
+                #expect(provider == .muse)
+                #expect(domain == "dev.meta.ai")
+                return "llama_dev_sess=synthetic"
+            })
+        return (snapshot, rejected.value)
+    }
+
+    static func expectQuotaUnavailable(_ snapshot: UsageSnapshot, reason: String) {
+        #expect(snapshot.primary == nil)
+        #expect(snapshot.secondary == nil)
+        #expect(snapshot.identity?.accountEmail == "ada@example.com")
+        #expect(snapshot.dataConfidence == .unknown)
+        #expect(snapshot.details.flatMap(\.rows).contains {
+            $0.label == "Quota" && $0.secondaryValue?.contains(reason) == true
+        })
     }
 
     private static func response(

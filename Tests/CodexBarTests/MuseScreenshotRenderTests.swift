@@ -82,6 +82,9 @@ final class MuseScreenshotRenderTests: XCTestCase {
         let directory = URL(fileURLWithPath: path, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let after = try await MusePluginTests.fetch(MusePluginTests.account, engine: .quickJS)
+        let unavailable = try await MusePluginTests.fetch(
+            #"{"is_subs_active":true,"subs_tier_name":"Muse Code Power Usage","user_email":"ada@example.com"}"#,
+            engine: .quickJS)
         // Golden snapshot from the original Swift proposal for the same synthetic response.
         let before = try UsageSnapshot(
             primary: RateWindow(
@@ -107,7 +110,9 @@ final class MuseScreenshotRenderTests: XCTestCase {
                 loginMethod: "Muse Code Power Usage"),
             dataConfidence: .exact)
         try CodexBarLocalizationOverride.$appLanguage.withValue("en") {
-            for (name, snapshot) in [("before-swift", before), ("after-plugin", after)] {
+            for (name, snapshot) in [
+                ("before-swift", before), ("after-plugin", after), ("quota-unavailable", unavailable),
+            ] {
                 let model = try UsageMenuCardView.Model.make(.init(
                     provider: .muse,
                     metadata: XCTUnwrap(ProviderDefaults.metadata[.muse]),

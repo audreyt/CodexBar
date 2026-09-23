@@ -1,17 +1,19 @@
 defineProvider({
   id: "muse",
   name: "Muse Code",
-  endpoints: ["https://api.meta.ai"],
-  auth: { type: "bearer", secret: "MUSE_DEVICE_TOKEN" },
+  endpoints: ["https://api.meta.ai", "https://dev.meta.ai"],
   settings: [{ key: "MUSE_DEVICE_TOKEN", title: "Muse login", type: "secure" }],
-  capabilities: ["http-status"],
+  capabilities: ["http-status", "browser-cookies"],
+  cookieDomains: ["dev.meta.ai"],
   async fetchUsage(ctx) {
-    if (!ctx.settings.getSecret("MUSE_DEVICE_TOKEN")?.startsWith("dca:")) {
+    // Keep the device credential off dashboard requests, which authenticate with the browser session instead.
+    const token = ctx.settings.getSecret("MUSE_DEVICE_TOKEN");
+    if (!token?.startsWith("dca:")) {
       throw ctx.fail.authenticationExpired("Muse Code requires a device-code login. Run `muse login` again.");
     }
     const response = await ctx.http.post("https://api.meta.ai/muse-code/key", {
       body: {},
-      headers: { "x-api-version": "1.0.0", "User-Agent": "CodexBar" },
+      headers: { Authorization: `Bearer ${token}`, "x-api-version": "1.0.0", "User-Agent": "CodexBar" },
       timeoutSeconds: 15,
     });
     if (response.status === 401 || response.status === 403) {
@@ -63,13 +65,92 @@ defineProvider({
     const plan = text(root.subs_tier_name, "subs_tier_name");
     const rows: CodexBarDetailRow[] = [];
     if (plan) rows.push({ label: "Plan", value: plan });
+    const identity = { email: text(root.user_email, "user_email"), loginMethod: plan ?? "Muse login" };
     const snapshot: CodexBarUsageSnapshot = {
       details: [{ title: "Muse Code subscription", rows }],
-      identity: { email: text(root.user_email, "user_email"), loginMethod: plan ?? "Muse login" },
+      identity,
       dataConfidence: "unknown",
     };
+    // The mint endpoint can confirm a subscription without reporting its quota.
+    // Absence is unknown usage, not an unused allowance or a failed login.
     if (root.subs_usage === undefined || root.subs_usage === null) {
-      rows.push({ label: "Quota", value: "Not included in this login response" });
+      // The dashboard usage page reads the same subscription through a dev.meta.ai session. That source is optional:
+      // every failure keeps the confirmed CLI identity, names the reason, and never guesses quota.
+      const domain = "dev.meta.ai";
+      let reason = "Sign in at https://dev.meta.ai/usage in Chrome, or paste its Cookie header in Muse settings.";
+      const unavailable = (message: string): never => {
+        reason = message;
+        throw new Error(message);
+      };
+      try {
+        const email = identity.email;
+        if (!email) return unavailable("The Muse login did not report an account email to match.");
+        if (ctx.browser.availability(domain) === "off")
+          return unavailable("Meta dashboard cookies are off in Muse settings.");
+        const cookie = await ctx.browser.cookieHeader(domain);
+        const get = async (path: string): Promise<Record<string, unknown>> => {
+          let result: CodexBarHTTPTextResponse;
+          try {
+            result = await ctx.http.get(`https://${domain}${path}`, {
+              headers: { Cookie: cookie, Accept: "application/json" },
+              timeoutSeconds: 4,
+            });
+          } catch (error) {
+            if ((error as CodexBarHTTPError).transportClass === "cancelled") throw error;
+            return unavailable("Meta dashboard could not be reached.");
+          }
+          if (result.status === 401 || result.status === 403) {
+            ctx.browser.rejectCookie(domain);
+            return unavailable("Meta dashboard session expired. Sign in again or update its Cookie header.");
+          }
+          if (result.status !== 200) return unavailable(`Meta dashboard returned HTTP ${result.status}.`);
+          reason = "Meta dashboard quota format was not recognized.";
+          return object(JSON.parse(result.bodyText), "dashboard response");
+        };
+        const user = await get("/api/auth/me");
+        if (text(user.email, "dashboard email")?.toLowerCase() !== email.toLowerCase()) {
+          return unavailable("Meta dashboard account does not match the Muse CLI login.");
+        }
+        const teams = (await get("/api/portal/teams")).teams;
+        if (!Array.isArray(teams) || teams.length !== 1) {
+          return unavailable("Meta dashboard team is ambiguous; quota was not selected.");
+        }
+        const teamID = text(object(teams[0], "dashboard team").team_id, "dashboard team ID");
+        if (!teamID || !/^\d+$/.test(teamID)) return fail("dashboard team ID");
+        const report = await get(`/api/portal/teams/${teamID}/subscription-quota`);
+        if (report.subscription_quota === undefined || report.subscription_quota === null) {
+          return unavailable("Meta dashboard did not report subscription quota.");
+        }
+        const quota = object(report.subscription_quota, "subscription_quota");
+        // Weighted counters exceed 2^31 and arrive as decimal strings.
+        const weighted = (value: unknown, field: string): number => {
+          const parsed = typeof value === "string" && /^\d+$/.test(value) ? Number(value) : value;
+          if (typeof parsed !== "number" || !Number.isSafeInteger(parsed) || parsed < 0) return fail(field);
+          return parsed;
+        };
+        const percent = (used: unknown, limit: unknown, field: string): number => {
+          const denominator = weighted(limit, `${field} limit`);
+          if (denominator <= 0) return fail(`${field} limit`);
+          return Math.min(100, (weighted(used, `${field} used`) / denominator) * 100);
+        };
+        const minutes = number(quota.window_duration_secs, "window_duration_secs") / 60;
+        if (!Number.isSafeInteger(minutes) || minutes <= 0) return fail("window_duration_secs");
+        const primaryPercent = percent(quota.window_weighted_used, quota.window_weighted_limit, "window");
+        const weeklyPercent = percent(quota.weekly_weighted_used, quota.weekly_weighted_limit, "weekly");
+        const primaryReset = reset(quota.window_resets_at);
+        const weeklyReset = reset(quota.weekly_resets_at);
+        rows.push({ label: "5 hours", value: `${ctx.format.number(primaryPercent, { maximumFractionDigits: 0 })}%` });
+        rows.push({ label: "Weekly", value: `${ctx.format.number(weeklyPercent, { maximumFractionDigits: 0 })}%` });
+        return {
+          ...snapshot,
+          primary: { usedPercent: primaryPercent, windowMinutes: minutes, resetsAt: primaryReset },
+          secondary: { usedPercent: weeklyPercent, windowMinutes: 10080, resetsAt: weeklyReset },
+          dataConfidence: "exact",
+        };
+      } catch (error) {
+        if ((error as CodexBarHTTPError).transportClass === "cancelled") throw error;
+      }
+      rows.push({ label: "Quota", value: "Not included in this login response", secondaryValue: reason });
       return snapshot;
     }
     const usage = object(root.subs_usage, "subs_usage");

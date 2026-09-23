@@ -37,9 +37,11 @@ discarded; CodexBar never writes them to the CLI's credential store.
 
 Reset timestamps outside the supported date range are omitted without discarding the window's usage percentage.
 
-Pay-as-you-go accounts without `is_subs_active` are reported as having no subscription rather than a fake 0% bar. Accounts that still need a payment method are reported as billing-incomplete.
+When the mint endpoint confirms an active subscription but omits `subs_usage` (or returns it as `null`), CodexBar tries the Meta dashboard `subscription-quota` API with a `dev.meta.ai` browser session whose account email matches the Muse CLI login. That is the same data the usage page shows for the current and weekly windows. The session comes from Chrome by default, or from a Cookie header pasted in **Settings → Providers → Muse Code**; set the cookie source to **Off** to use only the CLI mint response. Dashboard access is attempted only when the mint omits quota, and only when exactly one dashboard team is visible.
 
-An active subscription whose mint response omits `subs_usage` or returns it as `null` keeps its plan and identity, with **Quota: Not included in this login response** and no quota bars. Malformed quota objects still fail parsing; missing windows never become invented 0% usage.
+If the dashboard session is missing, expired, belongs to a different account, reports no quota, or returns a response CodexBar does not recognize, CodexBar keeps the plan and identity and shows **Quota: Not included in this login response**, with the reason as secondary text and no quota bars or reset estimates. Missing quota is not treated as a failed login or 0% usage; a later refresh with reported quota restores the bars. Malformed quota data in the mint response still fails parsing.
+
+Pay-as-you-go accounts without `is_subs_active` are reported as having no subscription rather than a fake 0% bar. Accounts that still need a payment method are reported as billing-incomplete.
 
 ## Local token history
 
