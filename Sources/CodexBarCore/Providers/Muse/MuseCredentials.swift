@@ -16,8 +16,7 @@ public enum MuseCredentials {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser) -> Bool
     {
-        self.authFileRecord(environment: environment, homeDirectory: homeDirectory) != nil ||
-            (try? self.keychainAccessToken()) != nil
+        self.authFileRecord(environment: environment, homeDirectory: homeDirectory) != nil || self.hasKeychainItem()
     }
 
     public static func accessToken(
@@ -79,25 +78,62 @@ public enum MuseCredentials {
         return AuthFileRecord(accessToken: token)
     }
 
+    #if os(macOS) && DEBUG
+    /// Replaces the Keychain secret read; the argument reports whether the read may show UI.
+    @TaskLocal static var keychainReadOverrideForTesting: (@Sendable (_ allowsInteraction: Bool) -> (OSStatus, Data?))?
+    #endif
+
+    /// Detects the CLI's Keychain login without requesting its secret, so availability and diagnostics checks
+    /// can never show a Keychain prompt. Whether the token is readable is decided when usage is fetched.
+    private static func hasKeychainItem() -> Bool {
+        #if os(macOS)
+        guard !KeychainAccessGate.isDisabled else { return false }
+        return switch KeychainAccessPreflight.checkGenericPassword(
+            service: self.keychainService,
+            account: self.keychainAccount)
+        {
+        case .allowed, .interactionRequired, .temporarilyUnavailable: true
+        case .notFound, .failure: false
+        }
+        #else
+        return false
+        #endif
+    }
+
     private static func keychainAccessToken() throws -> String? {
         #if os(macOS)
         guard !KeychainAccessGate.isDisabled else {
             throw MuseUsageError.keychainAccessDisabled
         }
-        var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: self.keychainService,
-            kSecAttrAccount as String: self.keychainAccount,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-            kSecReturnData as String: true,
-        ]
-        KeychainNoUIQuery.apply(to: &query)
+        // The Muse CLI owns this legacy Keychain item, so its access list may not trust CodexBar. Requesting the
+        // secret then shows the Allow/Deny prompt despite UI-fail flags, and the read blocks until it is answered.
+        // Inspect the decrypt ACL without UI first. Only a user-initiated refresh in the app may prompt, and only
+        // after CodexBar has explained why macOS is about to ask; background refreshes and the CLI fail fast.
+        let allowsInteraction: Bool
+        switch KeychainAccessPreflight.checkGenericPassword(
+            service: self.keychainService,
+            account: self.keychainAccount)
+        {
+        case .notFound:
+            return nil
+        case .allowed:
+            allowsInteraction = false
+        case .interactionRequired, .temporarilyUnavailable, .failure:
+            guard ProviderInteractionContext.current == .userInitiated,
+                  KeychainPromptHandler.notifyIfHandled(KeychainPromptContext(
+                      kind: .museOAuth,
+                      service: self.keychainService,
+                      account: self.keychainAccount))
+            else {
+                throw MuseUsageError.keychainUnavailable
+            }
+            allowsInteraction = true
+        }
 
-        var result: AnyObject?
-        let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
+        let (status, data) = self.readKeychainItem(allowsInteraction: allowsInteraction)
         switch status {
         case errSecSuccess:
-            guard let data = result as? Data else {
+            guard let data else {
                 throw MuseUsageError.parseFailed("Muse Keychain item was empty")
             }
             return try self.accessToken(fromKeychainPayload: data)
@@ -110,6 +146,29 @@ public enum MuseCredentials {
         return nil
         #endif
     }
+
+    #if os(macOS)
+    private static func readKeychainItem(allowsInteraction: Bool) -> (OSStatus, Data?) {
+        #if DEBUG
+        if let override = self.keychainReadOverrideForTesting {
+            return override(allowsInteraction)
+        }
+        #endif
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: self.keychainService,
+            kSecAttrAccount as String: self.keychainAccount,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecReturnData as String: true,
+        ]
+        if !allowsInteraction {
+            KeychainNoUIQuery.apply(to: &query)
+        }
+        var result: AnyObject?
+        let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
+        return (status, result as? Data)
+    }
+    #endif
 
     private static func requireAccessToken(_ raw: String?) throws -> String {
         let token = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

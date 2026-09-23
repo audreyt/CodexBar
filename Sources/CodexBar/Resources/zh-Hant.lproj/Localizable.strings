@@ -997,6 +997,7 @@
 "CodexBar found another managed account that already uses the current system account. Resolve the duplicate account before switching." = "CodexBar 發現另一個受管理帳號已使用目前的系統帳號。請先解決重複帳號，再進行切換。";
 "CodexBar will ask macOS Keychain for “%@” so it can decrypt browser cookies and authenticate your account. Click OK to continue." = "CodexBar 將向 macOS 鑰匙圈要求「%@」，以解密瀏覽器 Cookie 並認證你的帳號。按一下「確定」繼續。";
 "CodexBar will ask macOS Keychain for the Claude Code OAuth token so it can fetch your Claude usage. Click OK to continue." = "CodexBar 將向 macOS 鑰匙圈要求 Claude Code OAuth token，以取得你的 Claude 使用量。按一下「確定」繼續。";
+"CodexBar will ask macOS Keychain for the Muse Code OAuth token so it can fetch your Muse Code usage. Click OK to continue." = "CodexBar 將向 macOS 鑰匙圈要求 Muse Code OAuth token，以取得你的 Muse Code 使用量。按一下「確定」繼續。";
 "CodexBar will ask macOS Keychain for your Amp cookie header so it can fetch usage. Click OK to continue." = "CodexBar 將向 macOS 鑰匙圈要求你的 Amp Cookie 標頭，以取得使用量。按一下「確定」繼續。";
 "CodexBar will ask macOS Keychain for your Augment cookie header so it can fetch usage. Click OK to continue." = "CodexBar 將向 macOS 鑰匙圈要求你的 Augment Cookie 標頭，以取得使用量。按一下「確定」繼續。";
 "CodexBar will ask macOS Keychain for your Claude cookie header so it can fetch Claude web usage. Click OK to continue." = "CodexBar 將向 macOS 鑰匙圈要求你的 Claude Cookie 標頭，以取得 Claude 網頁使用量。按一下「確定」繼續。";

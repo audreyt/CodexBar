@@ -17,7 +17,8 @@ public enum MuseUsageError: LocalizedError, Sendable, Equatable {
             "Muse Code login is stored in Keychain. Check Disable Keychain access in Settings → Advanced, "
                 + "then refresh."
         case .keychainUnavailable:
-            "Muse Code credentials are in Keychain but could not be read without a prompt."
+            "Muse Code credentials are in Keychain but could not be read without a prompt. "
+                + "Refresh Muse Code from the CodexBar menu to allow access."
         case let .parseFailed(message):
             "Could not parse Muse Code login: \(message)"
         }

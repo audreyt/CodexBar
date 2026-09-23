@@ -8,17 +8,19 @@ read_when:
 
 # Keychain prompts
 
-CodexBar uses several credential sources, but two foreign-owned Keychain items are the common authorization surfaces:
+CodexBar uses several credential sources, but three foreign-owned Keychain items are the common authorization surfaces:
 
 - Chromium cookie import needs the browser's Safe Storage secret to decrypt its cookie database. Examples include
   `Chrome Safe Storage`, `Brave Safe Storage`, and `Microsoft Edge Safe Storage`.
 - Claude OAuth repair can read Claude Code's `Claude Code-credentials` item. Direct access to that foreign item is
   off by default and requires explicit consent in Claude's provider settings. The default prompt policy reserves
   interactive repair for a user action.
+- Muse Code reads the Muse CLI's `ai.meta.dev.credentials` item for its device-code login. Background refreshes and
+  the `codexbar` CLI never prompt for it; a user-initiated refresh explains the request before macOS asks.
 
-CodexBar does not need the browser or Claude account password. macOS owns the authorization prompt and should name
-the requesting app or binary. Never send a Keychain item value, cookie header, OAuth token, API key, or password in a
-support report.
+CodexBar does not need the browser, Claude, or Meta account password. macOS owns the authorization prompt and
+should name the requesting app or binary. Never send a Keychain item value, cookie header, OAuth token, API key, or
+password in a support report.
 
 ## When CodexBar can prompt
 
