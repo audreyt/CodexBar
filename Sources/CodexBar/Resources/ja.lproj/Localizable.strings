@@ -1128,7 +1128,6 @@
 "CodexBar found another managed account that already uses the current system account. Resolve the duplicate account before switching." = "CodexBar は、現在のシステムアカウントをすでに使用している別の管理アカウントを検出しました。切り替える前に重複アカウントを解消してください。";
 "CodexBar will ask macOS Keychain for “%@” so it can decrypt browser cookies and authenticate your account. Click OK to continue." = "CodexBar はブラウザの Cookie を復号してアカウントを認証するために、macOS キーチェーンに「%@」へのアクセスを求めます。続けるには OK をクリックしてください。";
 "CodexBar will ask macOS Keychain for the Claude Code OAuth token so it can fetch your Claude usage. Click OK to continue." = "CodexBar は Claude の使用量を取得するために、macOS キーチェーンに Claude Code の OAuth トークンへのアクセスを求めます。続けるには OK をクリックしてください。";
-"CodexBar will ask macOS Keychain for the Muse Code OAuth token so it can fetch your Muse Code usage. Click OK to continue." = "CodexBar は Muse Code の使用量を取得するために、macOS キーチェーンに Muse Code の OAuth トークンへのアクセスを求めます。続けるには OK をクリックしてください。";
 "CodexBar will ask macOS Keychain for your Amp cookie header so it can fetch usage. Click OK to continue." = "CodexBar は使用量を取得するために、macOS キーチェーンに Amp の Cookie ヘッダーへのアクセスを求めます。続けるには OK をクリックしてください。";
 "CodexBar will ask macOS Keychain for your Augment cookie header so it can fetch usage. Click OK to continue." = "CodexBar は使用量を取得するために、macOS キーチェーンに Augment の Cookie ヘッダーへのアクセスを求めます。続けるには OK をクリックしてください。";
 "CodexBar will ask macOS Keychain for your Claude cookie header so it can fetch Claude web usage. Click OK to continue." = "CodexBar は Claude ウェブの使用量を取得するために、macOS キーチェーンに Claude の Cookie ヘッダーへのアクセスを求めます。続けるには OK をクリックしてください。";
